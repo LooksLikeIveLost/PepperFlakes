@@ -10,5 +10,5 @@ def access_secret_version(project_id, secret_id, version_id="latest"):
 # Assuming your GCP project ID is stored in an environment variable
 project_id = os.getenv("GCP_PROJECT_ID")
 
-ELEVEN_LABS_API_KEY = access_secret_version("ELEVEN_LABS_API_KEY")
-LANGUAGE_MODEL_URL = access_secret_version("LANGUAGE_MODEL_URL")
+ELEVEN_LABS_API_KEY = access_secret_version(project_id, "ELEVEN_LABS_API_KEY")
+LANGUAGE_MODEL_URL = access_secret_version(project_id, "LANGUAGE_MODEL_URL")
