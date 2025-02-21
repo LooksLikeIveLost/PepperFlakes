@@ -4,4 +4,3 @@ requests
 google-cloud-speech
 python-dotenv
 python-multipart
-google-cloud-secret-manager

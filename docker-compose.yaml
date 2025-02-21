@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  discord-bot:
+    build: ./discord-bot
+    env_file: .env
+    depends_on:
+      - language-model
+      - audio-processor
+
+  language-model:
+    build: ./services/language-model
+    env_file: .env
+
+  audio-processor:
+    build: ./services/audio-processor
+    env_file: .env
+    depends_on:
+      - language-model
+    volumes:
+      - ./google-cloud-credentials.json:/app/google-cloud-credentials.json:ro
+
+  database:
+    image: postgres:13
+    env_file: ./.env
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

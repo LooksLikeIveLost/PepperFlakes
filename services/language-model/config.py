@@ -1,13 +1,6 @@
 import os
-from google.cloud import secretmanager
+from dotenv import load_dotenv
 
-def access_secret_version(project_id, secret_id, version_id="latest"):
-    client = secretmanager.SecretManagerServiceClient()
-    name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
-    response = client.access_secret_version(request={"name": name})
-    return response.payload.data.decode("UTF-8")
+load_dotenv()
 
-# Assuming your GCP project ID is stored in an environment variable
-project_id = os.getenv("GCP_PROJECT_ID")
-
-OPENAI_API_KEY = access_secret_version(project_id, "OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
