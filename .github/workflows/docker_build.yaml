@@ -14,7 +14,7 @@ on:
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GKE_CLUSTER: character-bot
-  GKE_ZONE: us-central1-c
+  GKE_ZONE: us-central1
   REPOSITORY: discord-bot-repo
   REGION: us-central1
 
