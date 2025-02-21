@@ -15,6 +15,8 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GKE_CLUSTER: character-bot
   GKE_ZONE: us-central1-c
+  REPOSITORY: discord-bot-repo
+  REGION: us-central1
 
 jobs:
   build-and-push:
@@ -29,23 +31,23 @@ jobs:
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    - name: Configure Docker to use GCR
-      run: gcloud auth configure-docker gcr.io
+    - name: Configure Docker to use Artifact Registry
+      run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
     - name: Build and Push Discord Bot Image
       run: |
-        docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/discord-bot-repo/discord-bot:latest ./discord-bot
-        docker push us-central1-docker.pkg.dev/$PROJECT_ID/discord-bot-repo/discord-bot:latest
+        docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/discord-bot:latest ./discord-bot
+        docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/discord-bot:latest
 
     - name: Build and Push Audio Processor Image
       run: |
-        docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/discord-bot-repo/audio-processor:latest ./services/audio-processor
-        docker push us-central1-docker.pkg.dev/$PROJECT_ID/discord-bot-repo/audio-processor:latest
+        docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/audio-processor:latest ./services/audio-processor
+        docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/audio-processor:latest
 
     - name: Build and Push Language Model Image
       run: |
-        docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/discord-bot-repo/language-model:latest ./services/language-model
-        docker push us-central1-docker.pkg.dev/$PROJECT_ID/discord-bot-repo/language-model:latest
+        docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/language-model:latest ./services/language-model
+        docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/language-model:latest
 
     - name: Configure Kubectl
       run: gcloud container clusters get-credentials $GKE_CLUSTER --zone=$GKE_ZONE --project=$PROJECT_ID
