@@ -54,6 +54,6 @@ jobs:
 
     - name: Deploy to GKE
       run: |
-        kubectl apply -f kupernetes/bot-deployment.yaml
-        kubectl apply -f kupernetes/audio-processor-deployment.yaml
-        kubectl apply -f kupernetes/language-model-deployment.yaml
+        kubectl apply -f kubernetes/bot-deployment.yaml
+        kubectl apply -f kubernetes/audio-deployment.yaml
+        kubectl apply -f kubernetes/language-model-deployment.yaml
