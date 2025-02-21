@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audio-processor
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: audio-processor
+  template:
+    metadata:
+      labels:
+        app: audio-processor
+    spec:
+      containers:
+      - name: audio-processor
+        image: lookslikeivelost/audio-processor:latest
+        ports:
+        - containerPort: 5001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audio-processor-service
+spec:
+  selector:
+    app: audio-processor
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5001
