@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 from transcriber import transcribe_audio
 from tts import text_to_speech
 import os
-from config import LANGUAGE_MODEL_API
+from config import LANGUAGE_MODEL_URL
 
 app = FastAPI()
 
@@ -32,7 +32,7 @@ async def process_audio(username: str, messages: list, file: UploadFile = File(.
 def get_language_model_response(messages: list):
     import requests
     
-    response = requests.post(LANGUAGE_MODEL_API, json={"messages": messages})
+    response = requests.post(LANGUAGE_MODEL_URL + "/generate/", json={"messages": messages})
     if response.status_code == 200:
         return response.json().get("reply")
     return None

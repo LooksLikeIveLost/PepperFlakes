@@ -12,16 +12,14 @@ spec:
       labels:
         app: discord-bot
     spec:
+      serviceAccountName: k8s-secret-reader
       containers:
       - name: discord-bot
         image: us-central1-docker.pkg.dev/discord-bots-442605/discord-bot-repo/discord-bot:latest
         imagePullPolicy: Always
         env:
-        - name: DISCORD_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: bot-secrets
-              key: DISCORD_TOKEN
+        - name: GCP_PROJECT_ID
+          value: discord-bots-442605
         ports:
         - containerPort: 3000
 ---

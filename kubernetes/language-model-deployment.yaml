@@ -12,10 +12,14 @@ spec:
       labels:
         app: language-model
     spec:
+      serviceAccountName: k8s-secret-reader
       containers:
       - name: language-model
         image: us-central1-docker.pkg.dev/discord-bots-442605/discord-bot-repo/language-model:latest
         imagePullPolicy: Always
+        env:
+        - name: GCP_PROJECT_ID
+          value: discord-bots-442605
         ports:
         - containerPort: 5002
 ---
