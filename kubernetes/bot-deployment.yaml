@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
       - name: discord-bot
-        image: lookslikeivelost/discord-bot:latest
+        image: gcr.io/lookslikeivelost/discord-bot:latest
+        imagePullPolicy: Always
         env:
         - name: DISCORD_TOKEN
           valueFrom:

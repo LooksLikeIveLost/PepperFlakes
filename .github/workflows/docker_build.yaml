@@ -1,55 +1,54 @@
-name: Build and Push Docker Images
+name: CI/CD Pipeline for GKE
 
 on:
   push:
     branches:
-      - main  # Runs when changes are pushed to the main branch
+      - main
   pull_request:
     branches:
       - main
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GKE_CLUSTER: character-bot
+  GKE_ZONE: us-central1-c
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      packages: write
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Log in to GitHub Container Registry
-      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    - name: Authenticate with Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
-    - name: Lowercase Owner
-      run: |
-        echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
+    - name: Configure Docker to use GCR
+      run: gcloud auth configure-docker gcr.io
 
     - name: Build and Push Discord Bot Image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./discord-bot
-        file: ./discord-bot/Dockerfile
-        push: true
-        tags: ghcr.io/${{ env.OWNER }}/discord-bot:latest
+      run: |
+        docker build -t gcr.io/$PROJECT_ID/discord-bot:latest ./discord-bot
+        docker push gcr.io/$PROJECT_ID/discord-bot:latest
 
     - name: Build and Push Audio Processor Image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./services/audio-processor
-        file: ./services/audio-processor/Dockerfile
-        push: true
-        tags: ghcr.io/${{ env.OWNER }}/audio-processor:latest
+      run: |
+        docker build -t gcr.io/$PROJECT_ID/audio-processor:latest ./services/audio-processor
+        docker push gcr.io/$PROJECT_ID/audio-processor:latest
 
     - name: Build and Push Language Model Image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./services/language-model
-        file: ./services/language-model/Dockerfile
-        push: true
-        tags: ghcr.io/${{ env.OWNER }}/language-model:latest
+      run: |
+        docker build -t gcr.io/$PROJECT_ID/language-model:latest ./services/language-model
+        docker push gcr.io/$PROJECT_ID/language-model:latest
+
+    - name: Configure Kubectl
+      run: gcloud container clusters get-credentials $GKE_CLUSTER --zone=$GKE_ZONE --project=$PROJECT_ID
+
+    - name: Deploy to GKE
+      run: |
+        kubectl apply -f k8s/bot-deployment.yaml
+        kubectl apply -f k8s/audio-processor-deployment.yaml
+        kubectl apply -f k8s/language-model-deployment.yaml

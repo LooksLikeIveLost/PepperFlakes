@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
       - name: audio-processor
-        image: lookslikeivelost/audio-processor:latest
+        image: gcr.io/lookslikeivelost/audio-processor:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5001
 ---

@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
       - name: language-model
-        image: lookslikeivelost/language-model:latest
+        image: gcr.io/lookslikeivelost/language-model:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5002
 ---
