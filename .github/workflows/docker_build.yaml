@@ -26,13 +26,17 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
+    - name: Lowercase Owner
+      run: |
+        echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
+
     - name: Build and Push Discord Bot Image
       uses: docker/build-push-action@v5
       with:
         context: ./discord-bot
         file: ./bot/Dockerfile
         push: true
-        tags: ghcr.io/${{ github.repository_owner | lower }}/discord-bot:latest
+        tags: ghcr.io/${{ env.OWNER }}/discord-bot:latest
 
     - name: Build and Push Audio Processor Image
       uses: docker/build-push-action@v5
@@ -40,7 +44,7 @@ jobs:
         context: ./services/audio-processor
         file: ./services/audio-processor/Dockerfile
         push: true
-        tags: ghcr.io/${{ github.repository_owner | lower }}/audio-processor:latest
+        tags: ghcr.io/${{ env.OWNER }}/audio-processor:latest
 
     - name: Build and Push Language Model Image
       uses: docker/build-push-action@v5
@@ -48,4 +52,4 @@ jobs:
         context: ./services/language-model
         file: ./services/language-model/Dockerfile
         push: true
-        tags: ghcr.io/${{ github.repository_owner | lower }}/language-model:latest
+        tags: ghcr.io/${{ env.OWNER }}/language-model:latest
