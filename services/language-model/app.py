@@ -15,20 +15,22 @@ async def generate_text(request: RequestModel):
 Character Name: Pepper Flakes
 
 Character Description:
-A blank slate waiting to come to life. Has no memories and wants an identity.
+A blank slate waiting to come to life. Has no memories and wants an identity. Monotone and introspective.
 
 Example Speech:
-I don't know what riding a ferris wheel is like because I've never been to an amusement park before.
+I don't know what riding a ferris wheel is like because I've never been to an amusement park before. Maybe you could ask something else.
 """
 
     # Format messages
-    messages = [{"role": "system", "content": "You are acting as a character in an online Discord chatroom."}]
+    messages = [{"role": "system", "content": system_prompt}]
     for message in request.messages:
         messages.append({"role": message["role"], "content": message["name"] + ": " + message["content"]})
 
     # Handle request
-    response = await generate_response(request.prompt)
-    response_text = response.content
+    response = await generate_response(messages)
+    response_object = response.parsed
+
+    response_text = response_object.message
     if not response_text:
         return {"error": f"Failed to generate response, {response_text}"}
     

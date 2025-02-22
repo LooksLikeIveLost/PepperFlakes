@@ -5,10 +5,14 @@ services:
     depends_on:
       - language-model
       - audio-processor
+    networks:
+      - app-network
 
   language-model:
     build: ./services/language-model
     env_file: .env
+    networks:
+      - app-network
 
   audio-processor:
     build: ./services/audio-processor
@@ -17,6 +21,9 @@ services:
       - language-model
     volumes:
       - ./google-cloud-credentials.json:/app/google-cloud-credentials.json:ro
+    networks:
+      - app-network
 
-volumes:
-  pgdata:
+networks:
+  app-network:
+    driver: bridge

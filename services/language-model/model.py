@@ -1,15 +1,23 @@
 import os
+from pydantic import BaseModel
 from openai import AsyncOpenAI
 from config import OPENAI_API_KEY
+
+# Define response format
+class Response(BaseModel):
+    name: str
+    message: str
 
 async def generate_response(messages):
     """Generates a response using OpenAI's GPT model."""
     try:
-        response = await get_client().chat.completions.create(
+        client = get_client()
+        response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=messages,
             temperature=0.7,
-            max_tokens=150
+            max_tokens=150,
+            response_format=Response
         )
         return response.choices[0].message
     except Exception as e:

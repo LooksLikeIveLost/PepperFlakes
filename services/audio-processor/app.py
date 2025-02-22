@@ -1,38 +1,25 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Response
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from transcriber import transcribe_audio
 from tts import text_to_speech
+import io
 import os
-from config import LANGUAGE_MODEL_URL
 
 app = FastAPI()
 
-@app.post("/process-audio/")
-async def process_audio(username: str, messages: list, file: UploadFile = File(...)):
+class TextToSpeechRequest(BaseModel):
+    text: str
+
+@app.post("/transcribe-audio/")
+async def transcribe_audio_endpoint(file: UploadFile = File(...)):
     audio_data = await file.read()
-    
-    transcription = transcribe_audio(audio_data)
-    if not transcription:
-        return {"error": "No transcription found"}
-    
-    # Add the transcription to the messages list
-    messages.append({"role": "user", "content": username + ": " + transcription})
+    return {"transcription": transcribe_audio(audio_data)}
 
-    # Call the external language model API to generate a response
-    response_text = get_language_model_response(messages)
-    if not response_text:
-        return {"error": "No AI response"}
-
-    # Convert text response to speech
-    audio_response = text_to_speech(response_text)
-    if not audio_response:
-        return {"error": "TTS failed"}
-
-    return {"audio_file": audio_response}
-
-def get_language_model_response(messages: list):
-    import requests
-    
-    response = requests.post(LANGUAGE_MODEL_URL + "/generate/", json={"messages": messages})
-    if response.status_code == 200:
-        return response.json().get("reply")
-    return None
+@app.post("/text-to-speech/")
+async def text_to_speech_endpoint(request: TextToSpeechRequest):
+    audio_content = text_to_speech(request.text)
+    if audio_content:
+        return StreamingResponse(io.BytesIO(audio_content), media_type="audio/mpeg")
+    else:
+        return Response(content="Failed to generate audio", status_code=500)

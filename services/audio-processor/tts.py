@@ -5,7 +5,7 @@ from config import ELEVEN_LABS_API_KEY
 VOICE_ID = "CwhRBWXzGAHq8TQ4Fs17"
 
 def text_to_speech(text):
-    """Converts text to speech using Eleven Labs API."""
+    # Converts text to speech using Eleven Labs API.
     if len(text) > 128:
         text = text[:128]  # Truncate long responses
 
@@ -24,13 +24,14 @@ def text_to_speech(text):
         }
     }
 
-    response = requests.post(
-        f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}",
-        headers=headers,
-        json=payload
-    )
-
-    if response.status_code == 200:
+    try:
+        response = requests.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}",
+            headers=headers,
+            json=payload
+        )
+        response.raise_for_status()
         return response.content
-
-    return None
+    except requests.RequestException as e:
+        print(f"Error in text_to_speech: {e}")
+        return None

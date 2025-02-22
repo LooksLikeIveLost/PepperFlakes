@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { LANGUAGE_MODEL_URL } = require('./config');
+const config = require('./config');
 
 async function generateBotResponse(client, message) {
   const messages = await message.channel.messages.fetch({ limit: 7 });
@@ -33,18 +33,27 @@ async function generateBotResponse(client, message) {
     return;
   }
 
+  // Wait 5-10 seconds
+  await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 5000) + 5000));
+
   // Signal typing status
   await message.channel.sendTyping();
 
-  try {
-    // Get response and send
-    const response = await axios.post(LANGUAGE_MODEL_URL + '/generate', { messages: conversationHistory });
-    if (response.data.reply) {
-      await message.reply(response.data.reply);
-    }
-  } catch (error) {
-    console.error("Error fetching AI response:", error);
+  // Send response
+  const response = await generateResponseFromMessages(conversationHistory);
+  if (response) {
+    await message.reply(response);
   }
 }
 
-module.exports = { generateBotResponse };
+async function generateResponseFromMessages(messages) {
+  try {
+    const response = await axios.post(config.LANGUAGE_MODEL_URL + '/generate', { messages: messages });
+    return response.data.reply;
+  } catch (error) {
+    console.error("Error fetching AI response:", error);
+    return null;
+  }
+}
+
+module.exports = { generateBotResponse, generateResponseFromMessages };
