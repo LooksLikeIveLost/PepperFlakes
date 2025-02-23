@@ -6,19 +6,22 @@ app = FastAPI()
 
 class RequestModel(BaseModel):
     messages: list
+    botName: str
+    characterDescription: str
+    exampleSpeech: str
 
 @app.post("/generate/")
 async def generate_text(request: RequestModel):
     # Character prompt
-    system_prompt = """You are acting a character in an online Discord chatroom.
+    system_prompt = f"""You are acting a character in an online Discord chatroom.
 
-Character Name: Pepper Flakes
+Character Name: {request.botName}
 
 Character Description:
-A blank slate waiting to come to life. Has no memories and wants an identity. Monotone and introspective.
+{request.characterDescription}
 
 Example Speech:
-I don't know what riding a ferris wheel is like because I've never been to an amusement park before. Maybe you could ask something else.
+{request.exampleSpeech}
 """
 
     # Format messages

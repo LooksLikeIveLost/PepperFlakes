@@ -230,8 +230,8 @@ function handleVoiceActivity(voiceChannel, receiver, audioProcessor) {
   });
 }
 
-function leaveVC(message) {
-  const connection = getVoiceConnection(message.guild.id);
+function leaveVC(guild) {
+  const connection = getVoiceConnection(guild.id);
   if (connection) {
     connection.destroy();
     console.log("Bot has left the voice channel.");
