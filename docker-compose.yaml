@@ -24,7 +24,7 @@ services:
     networks:
       - app-network
 
-  database=manager:
+  database-manager:
     build: ./services/database-manager
     env_file: .env
     environment:
