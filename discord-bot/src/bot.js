@@ -184,11 +184,12 @@ client.on('interactionCreate', async interaction => {
 
   const ownerId = interaction.guild ? interaction.guild.ownerId : interaction.user.id;
   const serverId = interaction.guild ? interaction.guild.id : null;
+  let botConfig = null;
 
   try {
     switch (commandName) {
       case 'charactercard':
-        const botConfig = await getBotConfig(ownerId, serverId);
+        botConfig = await getBotConfig(ownerId, serverId);
         if (!botConfig) {
           await interaction.reply({ content: 'Bot is not initialized yet.', ephemeral: true });
           return;
@@ -258,7 +259,7 @@ client.on('interactionCreate', async interaction => {
         break;
 
       case 'updatebot':
-        const botConfig = await getBotConfig(ownerId, serverId);
+        botConfig = await getBotConfig(ownerId, serverId);
         if (!botConfig) {
           await interaction.reply('Please initialize the bot first.');
           return;
