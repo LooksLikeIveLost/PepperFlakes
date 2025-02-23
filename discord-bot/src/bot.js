@@ -58,9 +58,6 @@ client.on('debug', console.log);
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
 
-  // Refresh commands on startup
-  refreshAppCommands().catch(console.error);
-
   // Check if in voice channel on startup
   client.guilds.cache.forEach(guild => {
     const botMember = guild.members.cache.get(client.user.id);
