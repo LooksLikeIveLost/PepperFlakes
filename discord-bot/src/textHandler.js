@@ -42,6 +42,10 @@ async function generateBotResponse(client, message, botconfig) {
 
   // Send response
   const response = await generateResponseFromMessages(conversationHistory, botconfig);
+
+  // Stop typing status
+  await message.channel.stopTyping();
+  
   return response;
 }
 
