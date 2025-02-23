@@ -58,6 +58,9 @@ client.on('debug', console.log);
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
 
+  // Refresh commands on startup
+  refreshAppCommands().catch(console.error);
+
   // Check if in voice channel on startup
   client.guilds.cache.forEach(guild => {
     const botMember = guild.members.cache.get(client.user.id);
@@ -71,7 +74,7 @@ client.once('ready', () => {
 async function refreshAppCommands() {
   try {
     console.log('Started refreshing application (/) commands.');
-    await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
+    await rest.put(Routes.applicationCommands(client.application.id), { body: commands });
     console.log('Successfully reloaded application (/) commands.');
     return true;
   } catch (error) {
