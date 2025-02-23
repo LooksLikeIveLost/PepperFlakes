@@ -1,0 +1,35 @@
+name: Build and Push to Gitea Registry
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Gitea Docker Registry
+        run: |
+          echo "${{ secrets.GITEA_REGISTRY_PASSWORD }}" | docker login ${{ secrets.GITEA_REGISTRY_URL }} \
+          -u ${{ secrets.GITEA_REGISTRY_USER }} --password-stdin
+
+      - name: Build and push Discord Bot image
+        run: |
+          docker build -t ${{ secrets.GITEA_REGISTRY_URL }}/discord-bot:latest ./discord-bot
+          docker push ${{ secrets.GITEA_REGISTRY_URL }}/discord-bot:latest
+
+      - name: Build and push Language Model image
+        run: |
+          docker build -t ${{ secrets.GITEA_REGISTRY_URL }}/language-model:latest ./services/language-model
+          docker push ${{ secrets.GITEA_REGISTRY_URL }}/language-model:latest
+
+      - name: Build and push Audio Processor image
+        run: |
+          docker build -t ${{ secrets.GITEA_REGISTRY_URL }}/audio-processor:latest ./services/audio-processor
+          docker push ${{ secrets.GITEA_REGISTRY_URL }}/audio-processor:latest
