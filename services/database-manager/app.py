@@ -23,6 +23,10 @@ class WebhookConfig(BaseModel):
     webhook_id: str
     webhook_url: str
 
+class User(BaseModel):
+    user_id: str
+    tier: str
+
 @app.post("/bot-config")
 async def create_bot(bot: BotConfig):
     conn = psycopg2.connect(**DB_CONFIG)
@@ -242,6 +246,23 @@ async def delete_server_webhook_configs(server_id: str):
         cur.execute("DELETE FROM webhook_configs WHERE server_id = %s", (server_id,))
         conn.commit()
         return {"message": "Server webhook configs deleted successfully"}
+    finally:
+        cur.close()
+        conn.close()
+
+@app.post("/user")
+async def create_user(user: User):
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            INSERT INTO users (user_id, tier)
+            VALUES (%s, %s)
+            RETURNING *
+        """, (user.user_id, user.tier))
+        new_user = cur.fetchone()
+        conn.commit()
+        return new_user
     finally:
         cur.close()
         conn.close()

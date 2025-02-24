@@ -7,7 +7,9 @@ CREATE TABLE bots (
   example_speech TEXT,
   voice_description TEXT,
   voice_id VARCHAR(255),
-  profile_picture_url TEXT
+  profile_picture_url TEXT,
+
+  UNIQUE (owner_id, server_id)
 );
 
 CREATE TABLE webhooks {
@@ -16,11 +18,13 @@ CREATE TABLE webhooks {
   server_id VARCHAR(255) NOT NULL,
   webhook_id VARCHAR(255) NOT NULL,
   webhook_url TEXT,
-  channel_id VARCHAR(255)
+  channel_id VARCHAR(255),
+
+  UNIQUE (owner_id, server_id, channel_id)
 }
 
 CREATE TABLE users {
   id SERIAL PRIMARY KEY,
-  user_id VARCHAR(255) NOT NULL,
+  user_id VARCHAR(255) UNIQUE NOT NULL,
   tier VARCHAR(255)
 }

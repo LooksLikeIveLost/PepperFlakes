@@ -191,6 +191,9 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
+        // Add user to database if not exists
+        await axios.post(`${DATABASE_MANAGER_URL}/user`, { user_id: ownerId });
+
         await interaction.deferReply({ ephemeral: true });
         
         try {
