@@ -134,6 +134,15 @@ async function deleteBotConfig(ownerId, serverId) {
   }
 }
 
+async function deleteServerConfigs(serverId) {
+  try {
+    const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-config/server/${serverId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting server configs:', error);
+  }
+}
+
 async function createWebhook(channel) {
   try {
     console.log('Creating webhook for channel:', channel.id);
@@ -177,12 +186,25 @@ async function formatCharacterCard(botConfig) {
   return embed;
 }
 
+// Check if a given user has correct server permissions
+async function hasServerPermissions(userId, serverId) {
+  if (userId === BOT_DEVELOPER_ID) return true;
+  try {
+    const guild = await client.guilds.fetch(serverId);
+    const member = await guild.members.fetch(userId);
+    return member.permissions.has('MANAGE_GUILD');
+  } catch (error) {
+    console.error('Error checking server permissions:', error);
+    return false;
+  }
+}
+
 client.on('interactionCreate', async interaction => {
   if (!interaction.isCommand()) return;
 
   const { commandName, options } = interaction;
 
-  const ownerId = interaction.guild ? interaction.guild.ownerId : interaction.user.id;
+  const ownerId = interaction.user.id;
   const serverId = interaction.guild ? interaction.guild.id : null;
   let botConfig = null;
 
@@ -201,8 +223,8 @@ client.on('interactionCreate', async interaction => {
         break;
 
       case 'initialize':
-        if (interaction.user.id !== ownerId) {
-          await interaction.reply({ content: 'Only the server owner can initialize the bot.', ephemeral: true });
+        if (!await hasServerPermissions(ownerId, serverId)) {
+          await interaction.reply({ content: 'You do not have bot permissions.', ephemeral: true });
           return;
         }
 
@@ -264,8 +286,8 @@ client.on('interactionCreate', async interaction => {
           await interaction.reply('Please initialize the bot first.');
           return;
         }
-        if (interaction.user.id !== ownerId) {
-          await interaction.reply('Only the server owner can update the bot configuration.');
+        if (!await hasServerPermissions(ownerId, serverId)) {
+          await interaction.reply('You do not have bot permissions.');
           return;
         }
         const field = options.getString('field');
@@ -283,10 +305,6 @@ client.on('interactionCreate', async interaction => {
         break;
 
       case 'deregister':
-        if (interaction.user.id !== ownerId) {
-          await interaction.reply('Only the server owner can deregister the bot.');
-          return;
-        }
         await deleteBotConfig(ownerId, serverId);
         await interaction.reply('Bot deregistered successfully.');
         break;
@@ -321,7 +339,7 @@ client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (message.webhookId) return;
 
-  const ownerId = message.guild ? message.guild.ownerId : message.author.id;
+  const ownerId = message.author.id;
   const serverId = message.guild ? message.guild.id : null;
   
   // Check if the message mentions the bot
@@ -344,8 +362,10 @@ client.on('messageCreate', async (message) => {
 
 // Delete bot when kicked
 client.on('guildMemberRemove', async (member) => {
-  if (member.id === client.user.id) {
+  if (member.id !== client.user.id) {
     await deleteBotConfig(member.guild.ownerId, member.guild.id);
+  } else {
+    await deleteServerConfigs(member.guild.id);
   }
 });
 

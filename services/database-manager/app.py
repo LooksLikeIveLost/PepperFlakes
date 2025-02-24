@@ -103,3 +103,18 @@ async def delete_bot(owner_id: str, server_id: str):
     finally:
         cur.close()
         conn.close()
+
+@app.delete("/bot-config/server/{server_id}")
+async def delete_server_bots(server_id: str):
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("DELETE FROM bots WHERE server_id = %s", (server_id,))
+        conn.commit()
+        return {"message": "Server bots deleted successfully"}
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
