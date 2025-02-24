@@ -19,7 +19,7 @@ const { AUDIO_PROCESSOR_URL, MIN_AUDIO_LENGTH } = require('./config');
 let isProcessingVoiceRequest = false;
 
 // Function to join voice channel
-async function joinVC(voiceChannel) {
+async function joinVC(voiceChannel, botConfig) {
   if (!voiceChannel) return;
 
   const connection = getVoiceConnection(voiceChannel.guild.id) || joinVoiceChannel({
@@ -67,11 +67,11 @@ async function joinVC(voiceChannel) {
     }
 
     // Generate bot response
-    const textRespose = await generateResponseFromMessages(messages);
+    const textRespose = await generateResponseFromMessages(messages, botConfig);
     console.log("Bot response:", textRespose);
 
     // Convert text to speech
-    const responseAudioStream = await convertTextToSpeech(textRespose);
+    const responseAudioStream = await convertTextToSpeech(textRespose, botConfig);
 
     if (!responseAudioStream) {
       console.error("Error converting text to speech");
@@ -113,9 +113,12 @@ async function transcribeAudio(audioBuffer) {
   }
 }
 
-async function convertTextToSpeech(text) {
+async function convertTextToSpeech(text, botConfig) {
   try {
-    const response = await axios.post(AUDIO_PROCESSOR_URL + '/text-to-speech/', { text }, {
+    const response = await axios.post(AUDIO_PROCESSOR_URL + '/text-to-speech/', {
+      text,
+      voice_id: botConfig.voice_id
+    }, {
       headers: {
         'Content-Type': 'application/json',
       },

@@ -5,6 +5,23 @@ const { getClient } = require('./utils');
 const axios = require('axios');
 const { DISCORD_TOKEN, DATABASE_MANAGER_URL, BOT_DEVELOPER_ID } = require('./config');
 
+const {
+  DEV_TIER,
+  tierMap,
+  getUser,
+  getUserBotCount,
+  getBotConfig,
+  getBotConfigsByChannel,
+  getBotConfigByCharacterName,
+  initializeBotConfig,
+  deleteBotConfig,
+  deleteServerConfigs,
+  createWebhook,
+  deleteWebhook,
+  deleteAllWebhooks,
+  deleteAllWebhooksForServer
+} = require('./dbutils');
+
 const client = getClient();
 
 const commands = [
@@ -49,6 +66,14 @@ const commands = [
   {
     name: 'joinvc',
     description: 'Join the voice channel',
+    options: [
+      {
+        name: 'charactername',
+        type: ApplicationCommandOptionType.String,
+        description: 'The name of the character to join the voice channel',
+        required: false,
+      },
+    ],
   },
   {
     name: 'leavevc',
@@ -87,74 +112,6 @@ async function refreshAppCommands() {
   } catch (error) {
     console.error('Failed to reload application (/) commands:', error);
     return false;
-  }
-}
-
-async function getBotConfig(ownerId, serverId) {
-  try {
-    const response = await axios.get(`${DATABASE_MANAGER_URL}/bot-config/${ownerId}/${serverId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching bot config:', error);
-    return null;
-  }
-}
-
-async function initializeBotConfig(ownerId, serverId, channelId) {
-  const newConfig = {
-    // put as strings
-    owner_id: ownerId.toString(),
-    server_id: serverId.toString(),
-    name: "Pepper Flakes",
-    character_description: "A blank slate waiting to come to life. Has no memories and wants an identity. Monotone and introspective.",
-    example_speech: "I don't know what riding a ferris wheel is like because I've never been to an amusement park before. Maybe you could ask something else.",
-    voice_description: "",
-    voice_id: "EXAVITQu4vr4xnSDxMaL",
-    profile_picture_url: client.user.avatarURL(),
-    webhook_id: "",
-    webhook_url: "",
-    channel_id: channelId.toString()
-  };
-
-  try {
-    const response = await axios.post(`${DATABASE_MANAGER_URL}/bot-config`, newConfig);
-    return response.data;
-  } catch (error) {
-    console.error('Error initializing bot config:', error);
-    throw error;
-  }
-}
-
-async function deleteBotConfig(ownerId, serverId) {
-  try {
-    const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-config/${ownerId}/${serverId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error deleting bot config:', error);
-  }
-}
-
-async function deleteServerConfigs(serverId) {
-  try {
-    const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-config/server/${serverId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error deleting server configs:', error);
-  }
-}
-
-async function createWebhook(channel) {
-  try {
-    console.log('Creating webhook for channel:', channel.id);
-    const webhook = await channel.createWebhook({
-      name: "Custom Bot Webhook",
-      avatar: client.user.avatarURL(),
-    });
-    console.log('Webhook created:', webhook);
-    return webhook;
-  } catch (error) {
-    console.error('Error creating webhook:', error);
-    return null;
   }
 }
 
@@ -239,25 +196,30 @@ client.on('interactionCreate', async interaction => {
         try {
           // Delete existing webhook if any
           const existingConfig = await axios.get(`${DATABASE_MANAGER_URL}/bot-config/${ownerId}/${serverId}`).catch(() => null);
-          if (existingConfig && existingConfig.data.webhook_url) {
-            const existingWebhook = new WebhookClient({ url: existingConfig.data.webhook_url });
-            await existingWebhook.delete().catch(console.error);
+
+          // Initialize bot config
+          if (!existingConfig) {
+            // Check if quota is exceeded
+            const response = await getUserBotCount(ownerId);
+            const userBotCountInfo = response.data;
+            const userTier = userBotCountInfo.tier;
+            const userBotCount = userBotCountInfo.bot_count;
+
+            if (userTier != DEV_TIER && userBotCount >= tierMap[userTier]["bot-quota"]) {
+              await interaction.editReply('You have reached the maximum number of servers with bots for your tier. Please upgrade or deregister a current bot.');
+              return;
+            }
+
+            const newBotConfig = await initializeBotConfig(ownerId, serverId, channel.id);
+            await axios.post(`${DATABASE_MANAGER_URL}/bot-config`, newBotConfig);
           }
 
           // Create new webhook
-          const webhook = await createWebhook(channel);
-          const webhookId = webhook ? webhook.id : null;
-          const webhookUrl = webhook ? webhook.url : null;
-          if (!webhookUrl) {
+          const webhook = await createWebhook(ownerId, channel);
+          if (!webhook) {
             await interaction.editReply('Failed to create webhook. Please check bot permissions.');
             return;
           }
-
-          // Initialize or update bot config
-          const newBotConfig = await initializeBotConfig(ownerId, serverId, channel.id);
-          newBotConfig.webhook_id = webhookId;
-          newBotConfig.webhook_url = webhookUrl;
-          await axios.post(`${DATABASE_MANAGER_URL}/bot-config`, newBotConfig);
 
           await interaction.editReply(`Bot initialized successfully in channel ${channel.name}.`);
         } catch (error) {
@@ -294,19 +256,21 @@ client.on('interactionCreate', async interaction => {
         const value = options.getString('value');
         botConfig[field] = value;
 
-        if (!botConfig.webhook_url && interaction.channel) {
-          const webhook = await createWebhook(interaction.channel);
-          botConfig.webhook_id = webhook.id;
-          botConfig.webhook_url = webhook.url;
-        }
-
         await axios.put(`${DATABASE_MANAGER_URL}/bot-config/${ownerId}/${serverId}`, botConfig);
         await interaction.reply(`Updated ${field} successfully.`);
         break;
 
       case 'deregister':
-        await deleteBotConfig(ownerId, serverId);
-        await interaction.reply('Bot deregistered successfully.');
+        await deleteWebhook(ownerId, serverId, interaction.channel.id);
+
+        // Check if any webhooks exist
+        const response = await axios.get(`${DATABASE_MANAGER_URL}/webhook-config/${ownerId}/${serverId}`).catch(() => null);
+        if (!response || response.data.length === 0) {
+          await deleteBotConfig(ownerId, serverId);
+          await interaction.reply('Bot deregistered from channel and bot config deleted successfully.');
+        } else {
+          await interaction.reply('Bot deregistered from channel successfully. (Bot still active in other channels)');
+        }
         break;
 
       case 'joinvc':
@@ -315,8 +279,23 @@ client.on('interactionCreate', async interaction => {
           await interaction.reply('You need to be in a server to use this command.');
           return;
         }
+
+        const characterName = options.getString('character_name');
+        let botConfig = null;
+        if (!characterName) {
+          // Get bot config by owner id
+          botConfig = await getBotConfig(ownerId, serverId);
+        } else {
+          // Get bot config by character name
+          botConfig = await getBotConfigByCharacterName(serverId, characterName);
+        }
+
+        if (!botConfig) {
+          await interaction.reply('Character not found.');
+          return;
+        }
         
-        await joinVC(interaction.member.voice.channel);
+        await joinVC(interaction.member.voice.channel, botConfig);
         await interaction.reply('Joined the voice channel.');
         break;
 
@@ -344,13 +323,13 @@ client.on('messageCreate', async (message) => {
   
   // Check if the message mentions the bot
   try {
-    const botConfig = await getBotConfig(ownerId, serverId);
+    const botConfigs = await getBotConfigsByChannel(serverId, message.channel.id);
 
-    if (!botConfig || botConfig.channel_id !== message.channel.id) {
+    if (!botConfigs) {
       return;
     }
 
-    const response = await generateBotResponse(client, message, botConfig);
+    const [response, botConfig] = await generateBotResponse(client, message, botConfigs);
 
     if (botConfig.webhook_url) {
       await sendWebhookMessage(botConfig.webhook_url, response, botConfig.name, botConfig.profile_picture_url);
@@ -364,9 +343,17 @@ client.on('messageCreate', async (message) => {
 client.on('guildMemberRemove', async (member) => {
   if (member.id !== client.user.id) {
     await deleteBotConfig(member.guild.ownerId, member.guild.id);
+    await deleteAllWebhooks(member.guild.ownerId, member.guild.id);
   } else {
     await deleteServerConfigs(member.guild.id);
+    await deleteAllWebhooksForServer(member.guild.id);
   }
+});
+
+// Delete bot when server is deleted
+client.on('guildDelete', async (guild) => {
+  await deleteServerConfigs(guild.id);
+  await deleteAllWebhooksForServer(guild.id);
 });
 
 client.login(DISCORD_TOKEN);
