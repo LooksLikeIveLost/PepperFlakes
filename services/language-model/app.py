@@ -26,8 +26,10 @@ Example Speech:
 
     # Format messages
     messages = [{"role": "system", "content": system_prompt}]
-    for message in request.messages:
-        messages.append({"role": message["role"], "content": message["name"] + ": " + message["content"]})
+
+    # Name: content
+    history_text = "\n".join([f"{message['name']}: {message['content']}" for message in request.messages])
+    messages.append({"role": "user", "content": history_text})
 
     # Handle request
     response = await generate_response(messages)
