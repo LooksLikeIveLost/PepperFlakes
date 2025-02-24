@@ -33,3 +33,8 @@ jobs:
         run: |
           docker build -t ${{ secrets.GITEA_REGISTRY_URL }}/${{ secrets.GITEA_REGISTRY_USER }}/audio-processor:latest ./services/audio-processor --provenance=false
           docker push ${{ secrets.GITEA_REGISTRY_URL }}/${{ secrets.GITEA_REGISTRY_USER }}/audio-processor:latest
+
+      - name: Build and push Database Manager image
+        run: |
+          docker build -t ${{ secrets.GITEA_REGISTRY_URL }}/${{ secrets.GITEA_REGISTRY_USER }}/database-manager:latest ./services/database-manager --provenance=false
+          docker push ${{ secrets.GITEA_REGISTRY_URL }}/${{ secrets.GITEA_REGISTRY_USER }}/database-manager:latest
