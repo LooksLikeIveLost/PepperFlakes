@@ -15,7 +15,7 @@ CREATE TABLE bots (
   voice_id VARCHAR(255),
   profile_picture_url TEXT,
   
-  UNIQUE (owner_id, server_id),
+  UNIQUE (owner_id, server_id, name),
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
