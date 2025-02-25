@@ -117,7 +117,7 @@ async function convertTextToSpeech(text, botConfig) {
   try {
     const response = await axios.post(AUDIO_PROCESSOR_URL + '/text-to-speech/', {
       text,
-      voice_id: botConfig.voice_id
+      eleven_voice_id: botConfig.eleven_voice_id
     }, {
       headers: {
         'Content-Type': 'application/json',

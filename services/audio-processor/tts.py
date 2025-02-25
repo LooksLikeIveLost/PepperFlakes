@@ -2,7 +2,7 @@ import os
 import requests
 from config import ELEVEN_LABS_API_KEY
 
-def text_to_speech(text, voice_id):
+def text_to_speech(text, eleven_voice_id):
     # Converts text to speech using Eleven Labs API.
     if len(text) > 128:
         text = text[:128]  # Truncate long responses
@@ -24,7 +24,7 @@ def text_to_speech(text, voice_id):
 
     try:
         response = requests.post(
-            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+            f"https://api.elevenlabs.io/v1/text-to-speech/{eleven_voice_id}",
             headers=headers,
             json=payload
         )

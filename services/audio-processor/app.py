@@ -10,7 +10,7 @@ app = FastAPI()
 
 class TextToSpeechRequest(BaseModel):
     text: str
-    voice_id: str
+    eleven_voice_id: str
 
 @app.post("/transcribe-audio/")
 async def transcribe_audio_endpoint(file: UploadFile = File(...)):

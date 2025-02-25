@@ -11,12 +11,12 @@ CREATE TABLE bots (
   name VARCHAR(255) NOT NULL,
   character_description TEXT,
   example_speech TEXT,
-  voice_description TEXT,
-  voice_id VARCHAR(255),
+  voice_id INTEGER,
   profile_picture_url TEXT,
   
-  UNIQUE (owner_id, server_id, name),
+  UNIQUE (server_id, name),
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+  FOREIGN KEY (voice_id) REFERENCES voices(id)
 );
 
 CREATE TABLE webhooks (
@@ -35,4 +35,9 @@ CREATE TABLE bots_webhooks (
   PRIMARY KEY (bot_id, webhook_id),
   FOREIGN KEY (bot_id) REFERENCES bots(id) ON DELETE CASCADE,
   FOREIGN KEY (webhook_id) REFERENCES webhooks(id) ON DELETE CASCADE
+);
+
+CREATE TABLE voices (
+  id SERIAL PRIMARY KEY,
+  eleven_voice_id VARCHAR(255) NOT NULL
 );

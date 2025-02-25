@@ -21,16 +21,6 @@ const tierMap = {
 
 DEV_TIER = "dev";
 
-async function getUser(userId) {
-  try {
-    const response = await axios.get(`${DATABASE_MANAGER_URL}/user/${userId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    return null;
-  }
-}
-
 async function getUserBotCount(userId) {
   try {
     const response = await axios.get(`${DATABASE_MANAGER_URL}/user/${userId}/bot-count`);
@@ -41,9 +31,9 @@ async function getUserBotCount(userId) {
   }
 }
 
-async function getBotConfig(ownerId, serverId) {
+async function getBotConfig(serverId, name) {
   try {
-    const response = await axios.get(`${DATABASE_MANAGER_URL}/bot-config/${ownerId}/${serverId}`);
+    const response = await axios.get(`${DATABASE_MANAGER_URL}/bot-config/${serverId}/${name}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching bot config:', error);
@@ -61,17 +51,7 @@ async function getBotConfigsByChannel(serverId, channelId) {
   }
 }
 
-async function getBotConfigByCharacterName(serverId, characterName) {
-  try {
-    const response = await axios.get(`${DATABASE_MANAGER_URL}/bot-config/name/${serverId}/${characterName}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching bot config by character name:', error);
-    return null;
-  }
-}
-
-async function initializeBotConfig(ownerId, serverId, channelId) {
+async function initializeBotConfig(ownerId, serverId) {
   const newConfig = {
     // put as strings
     owner_id: ownerId.toString(),
@@ -79,8 +59,7 @@ async function initializeBotConfig(ownerId, serverId, channelId) {
     name: "Pepper Flakes",
     character_description: "A blank slate waiting to come to life. Has no memories and wants an identity. Monotone and introspective.",
     example_speech: "I don't know what riding a ferris wheel is like because I've never been to an amusement park before. Maybe you could ask something else.",
-    voice_description: "",
-    voice_id: "EXAVITQu4vr4xnSDxMaL",
+    eleven_voice_id: "EXAVITQu4vr4xnSDxMaL",
     profile_picture_url: client.user.avatarURL()
   };
 
@@ -93,14 +72,23 @@ async function initializeBotConfig(ownerId, serverId, channelId) {
   }
 }
 
-async function deleteBotConfig(ownerId, serverId) {
+async function deleteBotConfig(serverId, name) {
   try {
     // Delete bot config
-    const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-config/${ownerId}/${serverId}`);
+    const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-config/${serverId}/${name}`);
 
     return response.data;
   } catch (error) {
     console.error('Error deleting configs:', error);
+  }
+}
+
+async function deleteBotConfigsByOwner(ownerId) {
+  try {
+    const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-config/owner/${ownerId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting bot configs by owner:', error);
   }
 }
 
@@ -113,12 +101,12 @@ async function deleteServerConfigs(serverId) {
   }
 }
 
-async function createWebhook(owner_id, channel) {
+async function getWebhook(owner_id, channel) {
   try {
     console.log('Creating webhook for channel:', channel.id);
 
     // Check if webhook exists (from database)
-    const existingWebhook = await axios.get(`${DATABASE_MANAGER_URL}/webhook-config/${owner_id}/${channel.guild.id}/${channel.id}`);
+    const existingWebhook = await axios.get(`${DATABASE_MANAGER_URL}/webhook-config/${channel.guild.id}/${channel.id}`);
 
     if (existingWebhook.data) {
       return existingWebhook.data;
@@ -148,35 +136,35 @@ async function createWebhook(owner_id, channel) {
   }
 }
 
-async function deleteWebhook(ownerId, serverId, channelId) {
-  // Get webhook info, then delete from server and database
+async function pruneWebhook(server_id, channel_id) {
   try {
-    const response = await axios.get(`${DATABASE_MANAGER_URL}/webhook-config/${ownerId}/${serverId}/${channelId}`);
-    const webhook_data = response.data;
-    const webhook_id = webhook_data.webhook_id;
-    await axios.delete(`${DATABASE_MANAGER_URL}/webhook-config/${ownerId}/${serverId}/${channelId}`);
+    const response = await axios.delete(`${DATABASE_MANAGER_URL}/webhook-config/prune/${server_id}/${channel_id}`);
 
-    const webhook = await client.fetchWebhook(webhook_id);
+    const webhook = await client.fetchWebhook(response.data.webhook_id);
     await webhook.delete();
+
+    return response.data;
   } catch (error) {
-    console.error('Error deleting webhook:', error);
+    console.error('Error pruning webhook:', error);
+    return null;
   }
 }
 
-async function deleteAllWebhooks(ownerId, serverId) {
+async function pruneWebhooksServer(server_id) {
   try {
-    const response = await axios.get(`${DATABASE_MANAGER_URL}/webhook-config/${ownerId}/${serverId}`);
-    const webhook_configs = response.data;
+    const response = await axios.delete(`${DATABASE_MANAGER_URL}/webhook-config/prune-server/${server_id}`);
 
-    await axios.delete(`${DATABASE_MANAGER_URL}/webhook-config/${ownerId}/${serverId}`);
+    const webhook_list = response.data;
 
-    for (const webhook_config of webhook_configs) {
-      const webhook_id = webhook_config.webhook_id;
-      const webhook = await client.fetchWebhook(webhook_id);
+    for (const webhook_data of webhook_list) {
+      const webhook = await client.fetchWebhook(webhook_data.webhook_id);
       await webhook.delete();
     }
+
+    return response.data;
   } catch (error) {
-    console.error('Error deleting all webhooks:', error);
+    console.error('Error pruning webhooks for server:', error);
+    return null;
   }
 }
 
@@ -197,18 +185,43 @@ async function deleteAllWebhooksForServer(serverId) {
   }
 }
 
+async function createBotWebhookLink(botId, webhookId) {
+  try {
+    const bot_webhook_data = {
+      bot_id: botId,
+      webhook_id: webhookId
+    };
+
+    const response = await axios.post(`${DATABASE_MANAGER_URL}/bot-webhook`, bot_webhook_data);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error creating bot webhook link:', error);
+  }
+}
+
+async function deleteBotWebhookLink(botId, webhookId) {
+  try {
+    const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-webhook/${botId}/${webhookId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting bot webhook link:', error);
+  }
+}
+
 module.exports = {
   tierMap,
-  getUser,
   getUserBotCount,
   getBotConfig,
   getBotConfigsByChannel,
-  getBotConfigByCharacterName,
   initializeBotConfig,
   deleteBotConfig,
+  deleteBotConfigsByOwner,
   deleteServerConfigs,
-  createWebhook,
-  deleteWebhook,
-  deleteAllWebhooks,
-  deleteAllWebhooksForServer
+  getWebhook,
+  pruneWebhook,
+  pruneWebhooksServer,
+  deleteAllWebhooksForServer,
+  createBotWebhookLink,
+  deleteBotWebhookLink
 };
