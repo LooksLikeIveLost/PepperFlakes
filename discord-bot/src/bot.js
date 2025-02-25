@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, ApplicationCommandOptionType, WebhookClient } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, ApplicationCommandOptionType, WebhookClient, EmbedBuilder } = require('discord.js');
 const { joinVC, leaveVC } = require('./voiceHandler');
 const { generateBotResponse } = require('./textHandler');
 const { getClient } = require('./utils');
@@ -10,6 +10,7 @@ const {
   tierMap,
   getUserBotCount,
   getBotConfig,
+  getBotConfigsList,
   getBotConfigsByChannel,
   initializeBotConfig,
   deleteBotConfig,
@@ -32,6 +33,14 @@ const commands = [
   {
     name: 'create',
     description: 'Create a new bot',
+    options: [
+      {
+        name: 'name',
+        type: ApplicationCommandOptionType.String,
+        description: 'The name of the bot',
+        required: false,
+      },
+    ]
   },
   {
     name: 'enablechannel',
@@ -184,6 +193,7 @@ async function formatCharacterCard(botConfig) {
     .setThumbnail(botConfig.profile_picture_url)
     .addFields(
       { name: 'Example Speech', value: botConfig.example_speech },
+      { name: 'Eleven Labs Voice ID', value: botConfig.eleven_voice_id }
     )
 
   return embed;
@@ -208,6 +218,9 @@ async function hasPermissions(userId, serverId) {
 async function getBotConfigValidate(ownerId, serverId, name) {
   // Get bot config
   botConfig = await getBotConfig(serverId, name);
+  if (!botConfig) {
+    return null;
+  }
 
   // Check if owner
   if (ownerId !== botConfig.owner_user_id && !hasPermissions(ownerId, serverId)) {
@@ -230,30 +243,33 @@ client.on('interactionCreate', async interaction => {
     return;
   }
 
-  let botConfig = null;
-  let name = null;
   try {
+    let name = null;
     switch (commandName) {
-      case 'charactercard':
+      case 'charactercard': {
         name = options.getString('name');
 
         // Get list of characters
         if (!name) {
           await interaction.deferReply({ ephemeral: true });
-          const botConfigs = await getBotConfigs(ownerId, serverId);
+          const botConfigs = await getBotConfigsList(ownerId, serverId);
+          if (!botConfigs) {
+            await interaction.editReply({ content: 'Failed to retrieve any bots.', ephemeral: true });
+            return;
+          }
           // Display list of character names
           const embed = new EmbedBuilder()
             .setTitle('Character Cards')
-            .setDescription('Select a character to view their card.');
+            .setDescription('Characters you own in this server:');
           for (let i = 0; i < botConfigs.length; i++) {
             const botConfig = botConfigs[i];
-            embed.addFields({ name: botConfig.name, value: `${i + 1}` });
+            embed.addFields({ name: botConfig.name, value: '' });
           }
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply({ embeds: [embed], ephemeral: true });
           return;
         } else {
           // Get bot config
-          botConfig = await getBotConfigValidate(ownerId, serverId, name);
+          const botConfig = await getBotConfigValidate(ownerId, serverId, name);
           if (!botConfig) {
             await interaction.reply({ content: botValidateError, ephemeral: true });
             return;
@@ -262,11 +278,13 @@ client.on('interactionCreate', async interaction => {
           // Display character card
           const embed = await formatCharacterCard(botConfig);
           await interaction.reply({ embeds: [embed] });
-          return;
         }
         break;
+      }
 
-      case 'create':
+      case 'create': {
+        name = options.getString('name') || 'Pepper Flakes';
+
         if (!await hasPermissions(ownerId, serverId)) {
           await interaction.reply({ content: botPermissionsError, ephemeral: true });
           return;
@@ -275,36 +293,28 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
         
         try {
-          // Get existing bot config
-          const existingConfig = getBotConfig(serverId, "Pepper Flakes");
-
-          // Initialize bot config
-          if (!existingConfig) {
-            // Check if quota is exceeded
-            const response = await getUserBotCount(ownerId);
-            const userBotCountInfo = response.data;
-            const userTier = userBotCountInfo.tier;
-            const userBotCount = userBotCountInfo.bot_count;
+          // Check if quota is exceeded
+          const response = await getUserBotCount(ownerId);
+          if (response) {
+            const userTier = response.tier;
+            const userBotCount = response.bot_count;
 
             if (userTier != DEV_TIER && userBotCount >= tierMap[userTier]["bot-quota"]) {
               await interaction.editReply('You have reached the maximum number of servers with bots for your tier. Please upgrade or delete a current bot.');
               return;
             }
-
-            const newBotConfig = await initializeBotConfig(ownerId, serverId);
-            await axios.post(`${DATABASE_MANAGER_URL}/bot-config`, newBotConfig);
-          } else {
-            await interaction.editReply('Bot with same name already exists for this server.');
           }
 
+          await initializeBotConfig(ownerId, serverId, name);
           await interaction.editReply(`Bot created successfully for server.`);
         } catch (error) {
           console.error('Error creating bot:', error);
-          await interaction.editReply('Failed to create bot. Check the console for more details.');
+          await interaction.editReply("Failed to create bot named " + name + "... Check that the name is not already in use.");
         }
         break;
+      }
 
-      case 'enablechannel':
+      case 'enablechannel': {
         name = options.getString('name');
 
         if (!await hasPermissions(ownerId, serverId)) {
@@ -322,14 +332,14 @@ client.on('interactionCreate', async interaction => {
         
         try {
           // Check if bot exists
-          const existingConfig = getBotConfigValidate(ownerId, serverId, name);
+          const existingConfig = await getBotConfigValidate(ownerId, serverId, name);
           if (!existingConfig) {
             await interaction.editReply(botValidateError);
             return;
           }
           
           // Get webhook
-          const webhook = await getWebhook(ownerId, channel);
+          const webhook = await getWebhook(serverId, channel);
 
           // Create link
           await createBotWebhookLink(existingConfig.id, webhook.id);
@@ -340,8 +350,9 @@ client.on('interactionCreate', async interaction => {
           await interaction.editReply('Failed to enable bot for channel. Check the console for more details.');
         }
         break;
+      }
 
-      case 'refreshcommands':
+      case 'refreshcommands': {
         if (interaction.user.id !== BOT_DEVELOPER_ID) {
           await interaction.reply({ content: 'Only the bot developer can use this command.', ephemeral: true });
           return;
@@ -354,8 +365,9 @@ client.on('interactionCreate', async interaction => {
           await interaction.editReply('Failed to refresh application commands. Check the console for more details.');
         }
         break;
+      }
 
-      case 'updatebot':
+      case 'updatebot': {
         name = options.getString('name');
 
         if (!await hasPermissions(ownerId, serverId)) {
@@ -363,7 +375,7 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
-        botConfig = await getBotConfigValidate(ownerId, serverId, name);
+        const botConfig = await getBotConfigValidate(ownerId, serverId, name);
         if (!botConfig) {
           await interaction.reply({ content: botValidateError, ephemeral: true });
           return;
@@ -375,8 +387,9 @@ client.on('interactionCreate', async interaction => {
         await axios.put(`${DATABASE_MANAGER_URL}/bot-config/${serverId}/${name}`, botConfig);
         await interaction.reply(`Updated ${field} successfully.`);
         break;
+      }
 
-      case 'deletebot':
+      case 'delete': {
         name = options.getString('name');
 
         if (!await hasPermissions(ownerId, serverId)) {
@@ -390,11 +403,17 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
-        await deleteBotConfig(serverId, name);
-        await interaction.reply('Bot deleted successfully.');
+        try {
+          await deleteBotConfig(serverId, name);
+          await interaction.reply('Bot deleted successfully.');
+        } catch (error) {
+          console.error('Error deleting bot:', error);
+          await interaction.reply('Failed to delete bot. Check the console for more details.');
+        }
         break;
+      }
 
-      case 'disablechannel':
+      case 'disablechannel': {
         name = options.getString('name');
         
         if (!await hasPermissions(ownerId, serverId)) {
@@ -406,14 +425,18 @@ client.on('interactionCreate', async interaction => {
 
         try {
           // Check if bot exists
-          const existingConfig = getBotConfigValidate(ownerId, serverId, name);
+          const existingConfig = await getBotConfigValidate(ownerId, serverId, name);
           if (!existingConfig) {
             await interaction.editReply(botValidateError);
             return;
           }
           
           // Get webhook
-          const webhook = await getWebhook(ownerId, interaction.channel);
+          const webhook = await getWebhook(serverId, interaction.channel, false);
+          if (!webhook) {
+            await interaction.editReply('Bot is not enabled for this channel.');
+            return;
+          }
 
           // Delete link
           await deleteBotWebhookLink(existingConfig.id, webhook.id);
@@ -427,8 +450,9 @@ client.on('interactionCreate', async interaction => {
           await interaction.editReply('Failed to disable bot for channel. Check the console for more details.');
         }
         break;
+      }
 
-      case 'joinvc':
+      case 'joinvc': {
         name = options.getString('name');
 
         // Check if in a server
@@ -448,14 +472,17 @@ client.on('interactionCreate', async interaction => {
         await joinVC(interaction.member.voice.channel, botConfig);
         await interaction.reply('Joined the voice channel.');
         break;
+      }
 
-      case 'leavevc':
+      case 'leavevc': {
         await leaveVC(interaction.guild);
         await interaction.reply('Left the voice channel.');
         break;
+      }
 
-      default:
+      default: {
         await interaction.reply('Unknown command.');
+      }
     }
   } catch (error) {
     console.error('Error handling command:', error);
@@ -468,14 +495,15 @@ client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (message.webhookId) return;
 
-  const ownerId = message.author.id;
   const serverId = message.guild ? message.guild.id : null;
   
   // Check if the message mentions the bot
   try {
     const botConfigs = await getBotConfigsByChannel(serverId, message.channel.id);
 
-    if (!botConfigs) {
+    console.log('Bot configs:', botConfigs);
+
+    if (!botConfigs || botConfigs.length === 0) {
       return;
     }
 

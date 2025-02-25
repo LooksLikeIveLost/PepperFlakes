@@ -51,11 +51,11 @@ async function generateBotResponse(client, message, botConfigs) {
   // Signal typing status
   await message.channel.sendTyping();
 
+  // Wait 3-6 seconds
+  await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 3000) + 3000));
+
   // Send response
   const response = await generateResponseFromMessages(conversationHistory, botconfig);
-
-  // Stop typing status
-  await message.channel.stopTyping();
   
   return [response, botconfig];
 }
