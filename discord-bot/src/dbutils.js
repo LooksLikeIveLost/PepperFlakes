@@ -118,6 +118,30 @@ async function getWebhook(serverId, channel, create = true) {
     // Check if webhook exists (from database)
     try {
       const response = await axios.get(`${DATABASE_MANAGER_URL}/webhook-config/${serverId}/${channel.id}`);
+
+      console.log('Webhook exists:', response.data);
+
+      // Check if webhook with id exists
+      const webhook = await client.fetchWebhook(response.data.webhook_id);
+
+      if (!webhook) {
+        // Webhook doesn't exist, attempt to create it
+        const webhook = await channel.createWebhook({
+          name: "Custom Bot Webhook",
+          avatar: client.user.avatarURL(),
+        });
+
+        // Send to database
+        const webhookData = {
+          server_id: channel.guild.id,
+          channel_id: channel.id,
+          webhook_id: webhook.id,
+          webhook_url: webhook.url
+        }
+
+        const response = await axios.put(`${DATABASE_MANAGER_URL}/webhook-config/update`, webhookData);
+      }
+
       return response.data;
     } catch (error) {
       if (!create) {

@@ -15,6 +15,12 @@ class BotConfig(BaseModel):
     eleven_voice_id: str = None
     profile_picture_url: str = None
 
+class BotUpdate(BaseModel):
+    name: str
+    character_description: str = None
+    example_speech: str = None
+    profile_picture_url: str = None
+
 class WebhookConfig(BaseModel):
     server_id: str
     channel_id: str
@@ -89,7 +95,7 @@ async def get_bot(server_id: str, name: str):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT b.*, v.*
+            SELECT b.*, v.eleven_voice_id
             FROM bots b
             JOIN voices v ON b.voice_id = v.id
             WHERE b.server_id = %s AND b.name = %s
@@ -108,7 +114,7 @@ async def get_bots(owner_id: str, server_id: str):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT b.*, v.*
+            SELECT b.*, v.eleven_voice_id
             FROM bots b
             JOIN voices v ON b.voice_id = v.id
             WHERE b.owner_id = (SELECT id FROM users WHERE user_id = %s) AND b.server_id = %s
@@ -127,7 +133,7 @@ async def get_bots_by_channel(server_id: str, channel_id: str):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT b.*, wc.*
+            SELECT b.*, wc.webhook_id, wc.webhook_url
             FROM bots b
             JOIN bots_webhooks bw ON b.id = bw.bot_id
             JOIN webhooks wc ON bw.webhook_id = wc.id
@@ -143,14 +149,14 @@ async def get_bots_by_channel(server_id: str, channel_id: str):
         conn.close()
 
 @app.put("/bot-config/{server_id}/{name}")
-async def update_bot(server_id: str, name: str, bot: BotConfig):
+async def update_bot(server_id: str, name: str, bot: BotUpdate):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         # Check if bot with name already exists
         cur.execute("SELECT * FROM bots WHERE server_id = %s AND name = %s", (server_id, bot.name))
         existing_bot = cur.fetchone()
-        if existing_bot is not None:
+        if existing_bot is not None and existing_bot["name"] != name:
             raise HTTPException(status_code=400, detail="Bot already exists")
 
         cur.execute("""
@@ -233,6 +239,26 @@ async def create_webhook_config(webhook_config: WebhookConfig):
         cur.close()
         conn.close()
 
+@app.put("/webhook-config/update")
+async def update_webhook_config(webhook_config: WebhookConfig):
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            UPDATE webhooks
+            SET webhook_id = %s, webhook_url = %s
+            WHERE server_id = %s AND channel_id = %s
+            RETURNING *
+        """, (webhook_config.webhook_id, webhook_config.webhook_url, webhook_config.server_id, webhook_config.channel_id))
+        updated_webhook_config = cur.fetchone()
+        if updated_webhook_config is None:
+            raise HTTPException(status_code=404, detail="Webhook config not found")
+        conn.commit()
+        return updated_webhook_config
+    finally:
+        cur.close()
+        conn.close()
+
 @app.get("/webhook-config/{server_id}/{channel_id}")
 async def get_webhook_config(server_id: str, channel_id: str):
     conn = psycopg2.connect(**DB_CONFIG)
@@ -264,17 +290,19 @@ async def prune_webhook(server_id: str, channel_id: str):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        # Get webhook that is not referenced in bots_webhooks table
-        cur.execute("""
-            SELECT id, webhook_id
-            FROM webhooks
-            WHERE server_id = %s AND channel_id = %s
-            AND id NOT IN (SELECT webhook_id FROM bots_webhooks)
-        """, (server_id, channel_id))
+        # Get webhook
+        cur.execute("SELECT * FROM webhooks WHERE server_id = %s AND channel_id = %s", (server_id, channel_id))
         webhook = cur.fetchone()
-        
+
         if webhook is None:
-            # No webhook to delete or it's still in use
+            return {"deleted": False, "webhook_id": None}
+
+        # Get all links to webhook
+        cur.execute("SELECT * FROM bots_webhooks WHERE webhook_id = %s", (webhook['id'],))
+        webhook_links = cur.fetchall()
+        
+        if webhook_links is not None and len(webhook_links) > 0:
+            # Webhook is still referenced, don't delete
             return {"deleted": False, "webhook_id": None}
         
         # Delete the webhook
@@ -295,21 +323,24 @@ async def prune_server_webhook_configs(server_id: str):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        # Get webhooks that are not referenced in bots_webhooks table
-        cur.execute("""
-            SELECT id, webhook_id
-            FROM webhooks
-            WHERE server_id = %s
-            AND id NOT IN (SELECT webhook_id FROM bots_webhooks)
-        """, (server_id,))
+        # Get webhooks for server
+        cur.execute("SELECT * FROM webhooks WHERE server_id = %s", (server_id,))
         webhooks = cur.fetchall()
         
-        if not webhooks:
-            # No webhooks to delete
+        if webhooks is None:
+            return {"deleted": False, "webhook_ids": []}
+        
+        webhook_ids = [webhook['id'] for webhook in webhooks]
+        
+        # Get all links to webhooks
+        cur.execute("SELECT * FROM bots_webhooks WHERE webhook_id = ANY(%s)", (webhook_ids,))
+        webhook_links = cur.fetchall()
+        
+        if webhook_links is not None and len(webhook_links) > 0:
+            # Webhook is still referenced, don't delete
             return {"deleted": False, "webhook_ids": []}
         
         # Delete webhooks not referenced in bots_webhooks table
-        webhook_ids = [webhook['id'] for webhook in webhooks]
         cur.execute("DELETE FROM webhooks WHERE id = ANY(%s)", (webhook_ids,))
         conn.commit()
         

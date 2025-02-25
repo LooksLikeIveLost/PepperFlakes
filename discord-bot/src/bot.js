@@ -222,6 +222,8 @@ async function getBotConfigValidate(ownerId, serverId, name) {
     return null;
   }
 
+  console.log('Bot config:', botConfig);
+
   // Check if owner
   if (ownerId !== botConfig.owner_user_id && !hasPermissions(ownerId, serverId)) {
     return null;
@@ -384,7 +386,14 @@ client.on('interactionCreate', async interaction => {
         const value = options.getString('value');
         botConfig[field] = value;
 
-        await axios.put(`${DATABASE_MANAGER_URL}/bot-config/${serverId}/${name}`, botConfig);
+        const newConfig = {
+          name: botConfig.name,
+          character_description: botConfig.character_description,
+          example_speech: botConfig.example_speech,
+          profile_picture_url: botConfig.profile_picture_url
+        }
+
+        await axios.put(`${DATABASE_MANAGER_URL}/bot-config/${serverId}/${name}`, newConfig);
         await interaction.reply(`Updated ${field} successfully.`);
         break;
       }
@@ -406,6 +415,9 @@ client.on('interactionCreate', async interaction => {
         try {
           await deleteBotConfig(serverId, name);
           await interaction.reply('Bot deleted successfully.');
+
+          // prune webhooks
+          await pruneWebhooksServer(serverId);
         } catch (error) {
           console.error('Error deleting bot:', error);
           await interaction.reply('Failed to delete bot. Check the console for more details.');
