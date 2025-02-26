@@ -1,4 +1,13 @@
-const { Client, GatewayIntentBits, REST, Routes, ApplicationCommandOptionType, WebhookClient, EmbedBuilder } = require('discord.js');
+const {
+  Client,
+  GatewayIntentBits,
+  REST,
+  Routes,
+  ApplicationCommandOptionType,
+  WebhookClient,
+  EmbedBuilder,
+  InteractionResponseFlags  
+} = require('discord.js');
 const { joinVC, leaveVC } = require('./voiceHandler');
 const { generateBotResponse } = require('./textHandler');
 const { getClient } = require('./utils');
@@ -87,7 +96,7 @@ const commands = [
   },
   {
     name: 'setvoiceid',
-    description: 'Set the eleven labs voice ID for a bot',
+    description: 'Set the elevenlabs voice ID for a bot',
     options: [
       {
         name: 'name',
@@ -98,7 +107,7 @@ const commands = [
       {
         name: 'elevenlabsvoiceid',
         type: ApplicationCommandOptionType.String,
-        description: 'The Eleven Labs voice ID',
+        description: 'The ElevenLabs voice ID',
         required: true,
       },
     ]
@@ -179,11 +188,23 @@ client.once('ready', () => {
   });
 });
 
-async function refreshAppCommands() {
+async function refreshAppCommands(guildId) {
   try {
-    console.log('Started refreshing application (/) commands.');
-    await rest.put(Routes.applicationCommands(client.application.id), { body: commands });
-    console.log('Successfully reloaded application (/) commands.');
+    if (guildId) {
+      // Update commands for a specific guild
+      await rest.put(
+        Routes.applicationGuildCommands(client.application.id, guildId),
+        { body: commands }
+      );
+      console.log(`Successfully reloaded application (/) commands for guild ${guildId}.`);
+    } else {
+      // Update global commands
+      await rest.put(
+        Routes.applicationCommands(client.application.id),
+        { body: commands }
+      );
+      console.log('Successfully reloaded global application (/) commands.');
+    }
     return true;
   } catch (error) {
     console.error('Failed to reload application (/) commands:', error);
@@ -374,12 +395,8 @@ client.on('interactionCreate', async interaction => {
       }
 
       case 'refreshcommands': {
-        if (interaction.user.id !== BOT_DEVELOPER_ID) {
-          await interaction.reply({ content: 'Only the bot developer can use this command.', ephemeral: true });
-          return;
-        }
         await interaction.deferReply({ ephemeral: true });
-        const success = await refreshAppCommands();
+        const success = await refreshAppCommands(serverId);
         if (success) {
           await interaction.editReply('Application commands refreshed successfully.');
         } else {
@@ -448,6 +465,7 @@ client.on('interactionCreate', async interaction => {
           await interaction.reply({ content: 'Failed to update bot Eleven Labs Voice ID. Check the console for more details.', ephemeral: true});
           return;
         }
+        break;
       }
 
       case 'delete': {
@@ -534,10 +552,13 @@ client.on('interactionCreate', async interaction => {
 
         // Set nickname
         try {
-          await client.user.setNickname(botConfig.name);
+          const botMember = interaction.guild.members.cache.get(client.user.id);
+          await botMember.setNickname(botConfig.name);
         } catch (error) {
           console.error('Error setting nickname:', error);
         }
+
+        await interaction.reply({ content: 'Joining the voice channel...', ephemeral: true });
         
         await joinVC(interaction.member.voice.channel, botConfig);
         break;
@@ -546,7 +567,8 @@ client.on('interactionCreate', async interaction => {
       case 'leavevc': {
         // Reset nickname
         try {
-          await client.user.setNickname(null);
+          const botMember = interaction.guild.members.cache.get(client.user.id);
+          await botMember.setNickname(null);
         } catch (error) {
           console.error('Error resetting nickname:', error);
         }

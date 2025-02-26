@@ -88,7 +88,10 @@ async function joinVC(voiceChannel, botConfig) {
       }
 
       // Play audio stream
-      playAudioStream(connection, responseAudioStream);
+      const player = playAudioStream(connection, responseAudioStream);
+
+      // Wait for the audio stream to finish playing
+      await player.on(AudioPlayerStatus.Idle);
     } catch (error) {
       console.error("Error in handleVoiceActivity:", error.response ? error.response.data : error.message);
     } finally {

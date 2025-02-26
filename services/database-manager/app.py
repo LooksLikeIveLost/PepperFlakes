@@ -470,7 +470,7 @@ async def update_bot_voice(voice_update: VoiceUpdate):
         cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (voice_update.eleven_voice_id,))
         voice = cur.fetchone()
         if voice is None:
-            cur.execute("INSERT INTO voices (eleven_voice_id) VALUES (%s, %s) RETURNING *", (voice_update.eleven_voice_id))
+            cur.execute("INSERT INTO voices (eleven_voice_id) VALUES (%s) RETURNING *", (voice_update.eleven_voice_id,))
             voice = cur.fetchone()
 
         # Get bots current voice id

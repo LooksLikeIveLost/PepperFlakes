@@ -8,7 +8,7 @@ conn = psycopg2.connect(
 )
 
 cur = conn.cursor()
-cur.execute("SELECT * FROM bots")
+cur.execute("SELECT * FROM users")
 rows = cur.fetchall()
 for row in rows:
     print(row)
