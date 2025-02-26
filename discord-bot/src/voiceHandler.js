@@ -16,11 +16,11 @@ const { getUsername } = require('./utils');
 const { opus } = require('prism-media');
 const { AUDIO_PROCESSOR_URL, MIN_AUDIO_LENGTH } = require('./config');
 
-let isProcessingVoiceRequest = false;
-
 // Function to join voice channel
 async function joinVC(voiceChannel, botConfig) {
   if (!voiceChannel) return;
+
+  let isProcessingVoiceRequest = false;
 
   const connection = getVoiceConnection(voiceChannel.guild.id) || joinVoiceChannel({
     channelId: voiceChannel.id,
@@ -58,28 +58,34 @@ async function joinVC(voiceChannel, botConfig) {
     const messages = [];
     const username = await getUsername(userId);
 
-    // Get transcribed audio and add to messages
-    const transcribedAudio = await transcribeAudio(audioBuffer);
-    console.log("Transcribed audio:", transcribedAudio);
+    try {
+      // Get transcribed audio and add to messages
+      const transcribedAudio = await transcribeAudio(audioBuffer);
+      console.log("Transcribed audio:", transcribedAudio);
 
-    if (transcribedAudio) {
-      messages.push({ role: 'user', name: username, content: transcribedAudio });
+      if (transcribedAudio) {
+        messages.push({ role: 'user', name: username, content: transcribedAudio });
+      }
+
+      // Generate bot response
+      const textRespose = await generateResponseFromMessages(messages, botConfig);
+      console.log("Bot response:", textRespose);
+
+      // Convert text to speech
+      const responseAudioStream = await convertTextToSpeech(textRespose, botConfig);
+
+      if (!responseAudioStream) {
+        console.error("Error converting text to speech");
+        return null;
+      }
+
+      // Play audio stream
+      playAudioStream(connection, responseAudioStream);
+    } catch (error) {
+      console.error("Error in handleVoiceActivity:", error.response ? error.response.data : error.message);
+    } finally {
+      isProcessingVoiceRequest = false;
     }
-
-    // Generate bot response
-    const textRespose = await generateResponseFromMessages(messages, botConfig);
-    console.log("Bot response:", textRespose);
-
-    // Convert text to speech
-    const responseAudioStream = await convertTextToSpeech(textRespose, botConfig);
-
-    if (!responseAudioStream) {
-      console.error("Error converting text to speech");
-      return null;
-    }
-
-    // Play audio stream
-    playAudioStream(connection, responseAudioStream);
   });
 }
 

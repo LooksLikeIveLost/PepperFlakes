@@ -31,7 +31,8 @@ async function generateBotResponse(client, message, botConfigs) {
   // Get chance of response, with 100% if message mentions bot and 15% for each message where the author is the bot, plus 2% flat
   for (const botConfig of botConfigs) {
     const mentionsBot = message.mentions.users.has(client.user.id) || message.content.toLowerCase().includes(botConfig.name.toLowerCase());
-    const numOwnMessages = recentMessages.filter(msg => msg.webhookId === botConfig.webhook_id).length;
+    // Get number of messages where the username is the same
+    const numOwnMessages = recentMessages.filter(msg => msg.webhookId && msg.author.username === botConfig.name).length;
 
     // Get chance of response
     botConfig.probability = mentionsBot ? 100 : (15 * numOwnMessages + 2);
@@ -39,6 +40,8 @@ async function generateBotResponse(client, message, botConfigs) {
 
   // Get config with highest response probability (with randomness for ties)
   const botconfig = botConfigs.reduce((a, b) => (a.probability > b.probability) ? a : (a.probability < b.probability) ? b : Math.random() > 0.5 ? a : b);
+
+  console.log('Highest response probability:', botconfig.probability);
 
   const randomNum = Math.floor(Math.random() * 100);
   if (randomNum >= botconfig.probability) {

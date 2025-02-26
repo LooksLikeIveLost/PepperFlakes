@@ -279,7 +279,7 @@ client.on('interactionCreate', async interaction => {
 
           // Display character card
           const embed = await formatCharacterCard(botConfig);
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply({ embeds: [embed], ephemeral: true });
         }
         break;
       }
@@ -377,13 +377,21 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
+        const field = options.getString('field');
+        const value = options.getString('value');
+
+        // Limit to 2000 characters
+        if (value.length > 2000) {
+          await interaction.reply({ content: 'Value must be less than 300 characters.', ephemeral: true });
+          return;
+        }
+
         const botConfig = await getBotConfigValidate(ownerId, serverId, name);
         if (!botConfig) {
           await interaction.reply({ content: botValidateError, ephemeral: true });
           return;
         }
-        const field = options.getString('field');
-        const value = options.getString('value');
+        
         botConfig[field] = value;
 
         const newConfig = {
@@ -394,7 +402,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         await axios.put(`${DATABASE_MANAGER_URL}/bot-config/${serverId}/${name}`, newConfig);
-        await interaction.reply(`Updated ${field} successfully.`);
+        await interaction.reply({ content: `Updated ${field} successfully.`, ephemeral: true});
         break;
       }
 
@@ -414,7 +422,7 @@ client.on('interactionCreate', async interaction => {
 
         try {
           await deleteBotConfig(serverId, name);
-          await interaction.reply('Bot deleted successfully.');
+          await interaction.reply({ content: 'Bot deleted successfully.', ephemeral: true});
 
           // prune webhooks
           await pruneWebhooksServer(serverId);
@@ -473,8 +481,7 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
-        const characterName = options.getString('character_name');
-        const botConfig = await getBotConfig(serverId, characterName);
+        const botConfig = await getBotConfig(serverId, name);
 
         if (!botConfig) {
           await interaction.reply('Character not found.');
@@ -482,7 +489,6 @@ client.on('interactionCreate', async interaction => {
         }
         
         await joinVC(interaction.member.voice.channel, botConfig);
-        await interaction.reply('Joined the voice channel.');
         break;
       }
 
@@ -519,7 +525,13 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    const [response, botConfig] = await generateBotResponse(client, message, botConfigs);
+    const result = await generateBotResponse(client, message, botConfigs);
+
+    if (!result) {
+      return;
+    }
+
+    const [response, botConfig] = result;
 
     if (botConfig.webhook_url) {
       await sendWebhookMessage(botConfig.webhook_url, response, botConfig.name, botConfig.profile_picture_url);

@@ -12,7 +12,7 @@ CREATE TABLE voices (
 CREATE TABLE bots (
   id SERIAL PRIMARY KEY,
   owner_id INTEGER NOT NULL,
-  server_id VARCHAR(255) UNIQUE NOT NULL,
+  server_id VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
   character_description TEXT,
   example_speech TEXT,
