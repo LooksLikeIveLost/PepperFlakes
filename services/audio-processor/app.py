@@ -10,7 +10,7 @@ app = FastAPI()
 
 class TextToSpeechRequest(BaseModel):
     text: str
-    voice_id: str
+    eleven_voice_id: str
 
 @app.post("/transcribe-audio/")
 async def transcribe_audio_endpoint(file: UploadFile = File(...)):
@@ -19,7 +19,7 @@ async def transcribe_audio_endpoint(file: UploadFile = File(...)):
 
 @app.post("/text-to-speech/")
 async def text_to_speech_endpoint(request: TextToSpeechRequest):
-    audio_content = text_to_speech(request.text, request.voice_id)
+    audio_content = text_to_speech(request.text, request.eleven_voice_id)
     if audio_content:
         return StreamingResponse(io.BytesIO(audio_content), media_type="audio/mpeg")
     else:

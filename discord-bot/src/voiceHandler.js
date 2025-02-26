@@ -16,11 +16,11 @@ const { getUsername } = require('./utils');
 const { opus } = require('prism-media');
 const { AUDIO_PROCESSOR_URL, MIN_AUDIO_LENGTH } = require('./config');
 
-let isProcessingVoiceRequest = false;
-
 // Function to join voice channel
-async function joinVC(voiceChannel) {
+async function joinVC(voiceChannel, botConfig) {
   if (!voiceChannel) return;
+
+  let isProcessingVoiceRequest = false;
 
   const connection = getVoiceConnection(voiceChannel.guild.id) || joinVoiceChannel({
     channelId: voiceChannel.id,
@@ -58,28 +58,45 @@ async function joinVC(voiceChannel) {
     const messages = [];
     const username = await getUsername(userId);
 
-    // Get transcribed audio and add to messages
-    const transcribedAudio = await transcribeAudio(audioBuffer);
-    console.log("Transcribed audio:", transcribedAudio);
+    try {
+      // Get transcribed audio and add to messages
+      const transcribedAudio = await transcribeAudio(audioBuffer);
+      console.log("Transcribed audio:", transcribedAudio);
 
-    if (transcribedAudio) {
+      if (!transcribedAudio || transcribedAudio.length <= 0) {
+        console.error("Error transcribing audio");
+        return null;
+      }
+
       messages.push({ role: 'user', name: username, content: transcribedAudio });
+
+      // Generate bot response
+      const textRespose = await generateResponseFromMessages(messages, botConfig);
+      console.log("Bot response:", textRespose);
+
+      if (!textRespose || textRespose.length <= 0) {
+        console.error("Error generating bot response");
+        return null;
+      }
+
+      // Convert text to speech
+      const responseAudioStream = await convertTextToSpeech(textRespose, botConfig);
+
+      if (!responseAudioStream) {
+        console.error("Error converting text to speech");
+        return null;
+      }
+
+      // Play audio stream
+      const player = playAudioStream(connection, responseAudioStream);
+
+      // Wait for the audio stream to finish playing
+      await player.on(AudioPlayerStatus.Idle);
+    } catch (error) {
+      console.error("Error in handleVoiceActivity:", error.response ? error.response.data : error.message);
+    } finally {
+      isProcessingVoiceRequest = false;
     }
-
-    // Generate bot response
-    const textRespose = await generateResponseFromMessages(messages);
-    console.log("Bot response:", textRespose);
-
-    // Convert text to speech
-    const responseAudioStream = await convertTextToSpeech(textRespose);
-
-    if (!responseAudioStream) {
-      console.error("Error converting text to speech");
-      return null;
-    }
-
-    // Play audio stream
-    playAudioStream(connection, responseAudioStream);
   });
 }
 
@@ -113,9 +130,12 @@ async function transcribeAudio(audioBuffer) {
   }
 }
 
-async function convertTextToSpeech(text) {
+async function convertTextToSpeech(text, botConfig) {
   try {
-    const response = await axios.post(AUDIO_PROCESSOR_URL + '/text-to-speech/', { text }, {
+    const response = await axios.post(AUDIO_PROCESSOR_URL + '/text-to-speech/', {
+      text,
+      eleven_voice_id: botConfig.eleven_voice_id
+    }, {
       headers: {
         'Content-Type': 'application/json',
       },

@@ -13,7 +13,7 @@ class RequestModel(BaseModel):
 @app.post("/generate/")
 async def generate_text(request: RequestModel):
     # Character prompt
-    system_prompt = f"""You are acting a character in an online Discord chatroom.
+    system_prompt = f"""You are acting a character in an online Discord chatroom. Your response should be 1-2 sentences long.
 
 Character Name: {request.botName}
 

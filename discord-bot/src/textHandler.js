@@ -1,8 +1,13 @@
 const axios = require('axios');
 const config = require('./config');
 
-async function generateBotResponse(client, message, botconfig) {
+async function generateBotResponse(client, message, botConfigs) {
   const messages = await message.channel.messages.fetch({ limit: 7 });
+
+  // Add probability of response to each bot config
+  botConfigs.forEach(botConfig => {
+    botConfig.probability = 0;
+  });
 
   // Filter by messages in the last hour and format
   const recentMessages = Array.from(messages.values())
@@ -11,7 +16,7 @@ async function generateBotResponse(client, message, botconfig) {
 
   // Convert to { role, author, content}
   const conversationHistory = recentMessages.map(msg => ({
-    role: (msg.webhookId === botconfig.webhook_id || msg.author.id === client.user.id) ? 'assistant' : 'user',
+    role: (msg.webhookId || msg.author.id === client.user.id) ? 'assistant' : 'user',
     name: msg.author.username,
     content: msg.content
   }))
@@ -24,13 +29,22 @@ async function generateBotResponse(client, message, botconfig) {
   }
 
   // Get chance of response, with 100% if message mentions bot and 15% for each message where the author is the bot, plus 2% flat
-  const mentionsBot = message.mentions.users.has(client.user.id);
-  const numOwnMessages = recentMessages.filter(msg => msg.author.id === client.user.id || msg.webhookId === botconfig.webhook_id).length;
+  for (const botConfig of botConfigs) {
+    const mentionsBot = message.mentions.users.has(client.user.id) || message.content.toLowerCase().includes(botConfig.name.toLowerCase());
+    // Get number of messages where the username is the same
+    const numOwnMessages = recentMessages.filter(msg => msg.webhookId && msg.author.username === botConfig.name).length;
 
-  // Get chance of response
-  const chanceOfResponse = mentionsBot ? 100 : (15 * numOwnMessages + 2);
+    // Get chance of response
+    botConfig.probability = mentionsBot ? 100 : (15 * numOwnMessages + 2);
+  }
+
+  // Get config with highest response probability (with randomness for ties)
+  const botconfig = botConfigs.reduce((a, b) => (a.probability > b.probability) ? a : (a.probability < b.probability) ? b : Math.random() > 0.5 ? a : b);
+
+  console.log('Highest response probability:', botconfig.probability);
+
   const randomNum = Math.floor(Math.random() * 100);
-  if (randomNum >= chanceOfResponse) {
+  if (randomNum >= botconfig.probability) {
     return;
   }
 
@@ -40,13 +54,13 @@ async function generateBotResponse(client, message, botconfig) {
   // Signal typing status
   await message.channel.sendTyping();
 
+  // Wait 3-6 seconds
+  await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 3000) + 3000));
+
   // Send response
   const response = await generateResponseFromMessages(conversationHistory, botconfig);
-
-  // Stop typing status
-  await message.channel.stopTyping();
   
-  return response;
+  return [response, botconfig];
 }
 
 async function generateResponseFromMessages(messages, botconfig) {
