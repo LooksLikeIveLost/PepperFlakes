@@ -256,6 +256,21 @@ async function deleteBotWebhookLink(botId, webhookId) {
   }
 }
 
+async function updateBotElevenVoiceId(serverId, name, elevenVoiceId) {
+  try {
+    const bot_voice_data = {
+      server_id: serverId,
+      name: name,
+      eleven_voice_id: elevenVoiceId
+    };
+
+    const response = await axios.put(`${DATABASE_MANAGER_URL}/bot-voice`, bot_voice_data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating bot ElevenVoice ID:', error);
+  }
+}
+
 module.exports = {
   tierMap,
   getUserBotCount,
@@ -271,5 +286,6 @@ module.exports = {
   pruneWebhooksServer,
   deleteAllWebhooksForServer,
   createBotWebhookLink,
-  deleteBotWebhookLink
+  deleteBotWebhookLink,
+  updateBotElevenVoiceId
 };

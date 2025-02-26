@@ -21,6 +21,11 @@ class BotUpdate(BaseModel):
     example_speech: str = None
     profile_picture_url: str = None
 
+class VoiceUpdate(BaseModel):
+    server_id: str
+    name: str
+    eleven_voice_id: str
+
 class WebhookConfig(BaseModel):
     server_id: str
     channel_id: str
@@ -451,6 +456,40 @@ async def get_user_bot_count(user_id: str):
         if user is None:
             raise HTTPException(status_code=404, detail="User not found")
         return user
+    finally:
+        cur.close()
+        conn.close()
+
+@app.put("/bot-voice")
+async def update_bot_voice(voice_update: VoiceUpdate):
+    # Check if voice exists and create if not, then assign to bot and prune old voices
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        # Check for existing voice
+        cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (voice_update.eleven_voice_id,))
+        voice = cur.fetchone()
+        if voice is None:
+            cur.execute("INSERT INTO voices (eleven_voice_id) VALUES (%s, %s) RETURNING *", (voice_update.eleven_voice_id))
+            voice = cur.fetchone()
+
+        # Get bots current voice id
+        cur.execute("SELECT voice_id FROM bots WHERE server_id = %s AND name = %s", (voice_update.server_id, voice_update.name))
+        bot = cur.fetchone()
+        if bot is None:
+            raise HTTPException(status_code=404, detail="Bot not found")
+        old_voice_id = bot["voice_id"]
+
+        # Update voice id
+        cur.execute("UPDATE bots SET voice_id = %s WHERE server_id = %s AND name = %s", (voice["id"], voice_update.server_id, voice_update.name))
+        conn.commit()
+
+        # Check if voice is referenced in bots table, if not delete it
+        cur.execute("SELECT * FROM bots WHERE voice_id = %s", (old_voice_id,))
+        bot = cur.fetchone()
+        if bot is None:
+            cur.execute("DELETE FROM voices WHERE id = %s", (old_voice_id,))
+        return voice
     finally:
         cur.close()
         conn.close()

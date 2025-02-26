@@ -21,7 +21,8 @@ const {
   pruneWebhooksServer,
   deleteAllWebhooksForServer,
   createBotWebhookLink,
-  deleteBotWebhookLink
+  deleteBotWebhookLink,
+  updateBotElevenVoiceId
 } = require('./dbutils');
 
 const client = getClient();
@@ -83,6 +84,24 @@ const commands = [
         required: true,
       },
     ],
+  },
+  {
+    name: 'setvoiceid',
+    description: 'Set the eleven labs voice ID for a bot',
+    options: [
+      {
+        name: 'name',
+        type: ApplicationCommandOptionType.String,
+        description: 'The name of the bot',
+        required: true,
+      },
+      {
+        name: 'elevenlabsvoiceid',
+        type: ApplicationCommandOptionType.String,
+        description: 'The Eleven Labs voice ID',
+        required: true,
+      },
+    ]
   },
   {
     name: 'delete',
@@ -406,6 +425,31 @@ client.on('interactionCreate', async interaction => {
         break;
       }
 
+      case 'setvoiceid': {
+        name = options.getString('name');
+        voiceId = options.getString('elevenlabsvoiceid');
+
+        if (!await hasPermissions(ownerId, serverId)) {
+          await interaction.reply({ content: botPermissionsError, ephemeral: true });
+          return;
+        }
+
+        const botConfig = await getBotConfigValidate(ownerId, serverId, name);
+        if (!botConfig) {
+          await interaction.reply({ content: botValidateError, ephemeral: true });
+          return;
+        }
+        
+        try {
+          await updateBotElevenVoiceId(serverId, name, voiceId);
+          await interaction.reply({ content: 'Updated bot Eleven Labs Voice ID successfully.', ephemeral: true});
+        } catch (error) {
+          console.error('Error updating bot ElevenVoice ID:', error);
+          await interaction.reply({ content: 'Failed to update bot Eleven Labs Voice ID. Check the console for more details.', ephemeral: true});
+          return;
+        }
+      }
+
       case 'delete': {
         name = options.getString('name');
 
@@ -487,14 +531,28 @@ client.on('interactionCreate', async interaction => {
           await interaction.reply('Character not found.');
           return;
         }
+
+        // Set nickname
+        try {
+          await client.user.setNickname(botConfig.name);
+        } catch (error) {
+          console.error('Error setting nickname:', error);
+        }
         
         await joinVC(interaction.member.voice.channel, botConfig);
         break;
       }
 
       case 'leavevc': {
+        // Reset nickname
+        try {
+          await client.user.setNickname(null);
+        } catch (error) {
+          console.error('Error resetting nickname:', error);
+        }
+
         await leaveVC(interaction.guild);
-        await interaction.reply('Left the voice channel.');
+        await interaction.reply({ content: 'Left the voice channel.', ephemeral: true });
         break;
       }
 

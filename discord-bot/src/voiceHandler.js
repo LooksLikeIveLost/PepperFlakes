@@ -63,13 +63,21 @@ async function joinVC(voiceChannel, botConfig) {
       const transcribedAudio = await transcribeAudio(audioBuffer);
       console.log("Transcribed audio:", transcribedAudio);
 
-      if (transcribedAudio) {
-        messages.push({ role: 'user', name: username, content: transcribedAudio });
+      if (!transcribedAudio || transcribedAudio.length <= 0) {
+        console.error("Error transcribing audio");
+        return null;
       }
+
+      messages.push({ role: 'user', name: username, content: transcribedAudio });
 
       // Generate bot response
       const textRespose = await generateResponseFromMessages(messages, botConfig);
       console.log("Bot response:", textRespose);
+
+      if (!textRespose || textRespose.length <= 0) {
+        console.error("Error generating bot response");
+        return null;
+      }
 
       // Convert text to speech
       const responseAudioStream = await convertTextToSpeech(textRespose, botConfig);
