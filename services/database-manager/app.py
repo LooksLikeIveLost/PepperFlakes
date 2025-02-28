@@ -38,7 +38,6 @@ class BotWebhook(BaseModel):
 
 class User(BaseModel):
     user_id: str
-    tier: str
 
 @app.post("/bot-config")
 async def create_bot(bot: BotConfig):
@@ -100,9 +99,10 @@ async def get_bot(server_id: str, name: str):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT b.*, v.eleven_voice_id
+            SELECT b.*, v.eleven_voice_id, u.user_id
             FROM bots b
             JOIN voices v ON b.voice_id = v.id
+            JOIN users u ON b.owner_id = u.id
             WHERE b.server_id = %s AND b.name = %s
         """, (server_id, name))
         bot = cur.fetchone()
@@ -415,10 +415,10 @@ async def create_user(user: User):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            INSERT INTO users (user_id, tier)
+            INSERT INTO users (user_id)
             VALUES (%s, %s)
             RETURNING *
-        """, (user.user_id, user.tier))
+        """, (user.user_id))
         new_user = cur.fetchone()
         conn.commit()
         return new_user
@@ -446,11 +446,11 @@ async def get_user_bot_count(user_id: str):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT users.user_id, users.tier, COUNT(bots.id) AS bot_count
+            SELECT users.user_id, COUNT(bots.id) AS bot_count
             FROM users
             LEFT JOIN bots ON users.id = bots.owner_id
             WHERE users.user_id = %s
-            GROUP BY users.user_id, users.tier
+            GROUP BY users.user_id
         """, (user_id,))
         user = cur.fetchone()
         if user is None:

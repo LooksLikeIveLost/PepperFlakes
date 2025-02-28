@@ -3,24 +3,6 @@ const { DATABASE_MANAGER_URL } = require('./config');
 const { getClient } = require('./utils');
 const client = getClient();
 
-// tier map
-const tierMap = {
-  "free": {
-    "bot-quota": 1,
-    "voice-enabled": false
-  },
-  "basic": {
-    "bot-quota": 3,
-    "voice-enabled": true
-  },
-  "premium": {
-    "bot-quota": 5,
-    "voice-enabled": true
-  }
-};
-
-DEV_TIER = "dev";
-
 async function getUserBotCount(userId) {
   try {
     const response = await axios.get(`${DATABASE_MANAGER_URL}/user/${userId}/bot-count`);
@@ -272,7 +254,6 @@ async function updateBotElevenVoiceId(serverId, name, elevenVoiceId) {
 }
 
 module.exports = {
-  tierMap,
   getUserBotCount,
   getBotConfig,
   getBotConfigsList,

@@ -6,17 +6,21 @@ const {
   ApplicationCommandOptionType,
   WebhookClient,
   EmbedBuilder,
-  InteractionResponseFlags  
+  InteractionResponseFlags 
 } = require('discord.js');
 const { joinVC, leaveVC } = require('./voiceHandler');
 const { generateBotResponse } = require('./textHandler');
-const { getClient } = require('./utils');
+const {
+  tierMap,
+  getClient,
+  notifyUserTierChange,
+  getUserTierFromRoles
+} = require('./utils');
 const axios = require('axios');
 const { DISCORD_TOKEN, DATABASE_MANAGER_URL, BOT_DEVELOPER_ID } = require('./config');
 
 const {
   DEV_TIER,
-  tierMap,
   getUserBotCount,
   getBotConfig,
   getBotConfigsList,
@@ -40,6 +44,18 @@ const botValidateError = "The bot does not exist or you do not own it.";
 const botPermissionsError = "You do not have bot permissions in this server.";
 
 const commands = [
+  {
+    name: 'help',
+    description: 'Get help',
+  },
+  {
+    name: 'tier',
+    description: 'Get your tier',
+  },
+  {
+    name: 'subscribe',
+    description: 'Information on upgrading your tier',
+  },
   {
     name: 'create',
     description: 'Create a new bot',
@@ -288,6 +304,49 @@ client.on('interactionCreate', async interaction => {
   try {
     let name = null;
     switch (commandName) {
+      case 'help': {
+        // Send an embed with the steps to set up a bot
+        const embed = new EmbedBuilder()
+          .setTitle('Help')
+          .setDescription('Here are a list of common commands to get you started:');
+
+        embed.addFields({ name: '/create', value: 'Start by creating a bot with a given name.' });
+        embed.addFields({ name: '/charactercard', value: 'Use this command to view a list of characters. Pass a name argument to see a specific card!' });
+        embed.addFields({ name: '/updatebot', value: 'Use this command to update its character card.' });
+        embed.addFields({ name: '/enablechannel', value: 'Allow the bot to post messages in a given channel. Bots will often respond to their name, or randomly as you chat.' });
+        embed.addFields({ name: '/disablechannel', value: 'Disable a channel for a bot, making it no longer post messages.' });
+        embed.addFields({ name: '/setvoiceid', value: 'Set the bot\'s Eleven Labs voice ID.' });
+        embed.addFields({ name: '/joinvc', value: 'Join a voice channel and have the bot chime in!' });
+        embed.addFields({ name: '/leavevc', value: 'Have the bot leave the voice channel.' });
+        embed.addFields({ name: '/delete', value: 'Delete the bot.' });
+        embed.addFields({ name: '/tier', value: 'Check your current tier!' });
+        embed.addFields({ name: '/subscribe', value: 'Get more features and support the bot!' });
+        embed.addFields({ name: 'Discord Server', value: 'https://discord.gg/FHtZznTjk6' });
+
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        break;
+      }
+
+      case 'tier': {
+        // Get the user's tier
+        const userTier = await getUserTierFromRoles(ownerId);
+
+        await interaction.reply({ content: `You are curently a ${userTier} tier member! Use the subscribe command for info about changing your tier! (If this seems like a mistake, get help through our server.)`, ephemeral: true });
+        break;
+      }
+
+      case 'subscribe': {
+        // Send an embed with the steps to for subscription
+        const embed = new EmbedBuilder()
+          .setTitle('Subscriptions')
+          .setDescription('Here are ways you can support me and get more features:');
+
+        embed.addFields({ name: 'Patreon', value: 'https://www.patreon.com/c/KylenXiao' });
+
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        break;
+      }
+
       case 'charactercard': {
         name = options.getString('name');
 
@@ -335,10 +394,20 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
         
         try {
+          // Get the user's tier
+          const userTier = await getUserTierFromRoles(ownerId);
+
+          // Check if member limit is exceeded
+          const guild = await client.guilds.fetch(serverId);
+          const maxMembers = tierMap[userTier]["member-quota"];
+          if (guild.memberCount > maxMembers && maxMembers > 0) {
+            await interaction.editReply('Cannot add bot to server with more than ' + tierMap[userTier]["member-quota"] + ' members. Upgrade your tier to remove limits.');
+            return;
+          }
+
           // Check if quota is exceeded
           const response = await getUserBotCount(ownerId);
           if (response) {
-            const userTier = response.tier;
             const userBotCount = response.bot_count;
 
             if (userTier != DEV_TIER && userBotCount >= tierMap[userTier]["bot-quota"]) {
@@ -456,6 +525,15 @@ client.on('interactionCreate', async interaction => {
           await interaction.reply({ content: botValidateError, ephemeral: true });
           return;
         }
+
+        // Get owner's tier
+        const ownerTier = await getUserTierFromRoles(botConfig.user_id);
+        const voiceAccess = tierMap[ownerTier]['voice-enabled'];
+
+        if (!voiceAccess) {
+          await interaction.reply('The owner of this character does not have access to voice functionality.');
+          return;
+        }
         
         try {
           await updateBotElevenVoiceId(serverId, name, voiceId);
@@ -550,6 +628,15 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
+        // Get owner's tier
+        const ownerTier = await getUserTierFromRoles(botConfig.user_id);
+        const voiceAccess = tierMap[ownerTier]['voice-enabled'];
+
+        if (!voiceAccess) {
+          await interaction.reply('The owner of this character does not have access to voice functionality.');
+          return;
+        }
+
         // Set nickname
         try {
           const botMember = interaction.guild.members.cache.get(client.user.id);
@@ -618,6 +705,16 @@ client.on('messageCreate', async (message) => {
     }
   } catch (error) {
     console.error('Error handling message:', error);
+  }
+});
+
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+  if (oldMember.roles.cache.size !== newMember.roles.cache.size) {
+    const discordId = newMember.id;
+    const newTier = await getUserTierFromRoles(discordId);
+    
+    // Notify user
+    await notifyUserTierChange(discordId, newTier);
   }
 });
 
