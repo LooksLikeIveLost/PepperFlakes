@@ -243,6 +243,7 @@ async function updateBotElevenVoiceId(serverId, name, elevenVoiceId) {
     const bot_voice_data = {
       server_id: serverId,
       name: name,
+      custom_voice: false,
       eleven_voice_id: elevenVoiceId
     };
 

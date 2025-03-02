@@ -24,6 +24,7 @@ class BotUpdate(BaseModel):
 class VoiceUpdate(BaseModel):
     server_id: str
     name: str
+    custom_voice: bool
     eleven_voice_id: str
 
 class WebhookConfig(BaseModel):
@@ -65,7 +66,7 @@ async def create_bot(bot: BotConfig):
         cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (bot.eleven_voice_id,))
         voice = cur.fetchone()
         if voice is None:
-            cur.execute("INSERT INTO voices (eleven_voice_id) VALUES (%s)", (bot.eleven_voice_id,))
+            cur.execute("INSERT INTO voices (custom_voice, eleven_voice_id) VALUES (%s)", (False, bot.eleven_voice_id))
             conn.commit()
             cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (bot.eleven_voice_id,))
             voice = cur.fetchone()
@@ -99,7 +100,7 @@ async def get_bot(server_id: str, name: str):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT b.*, v.eleven_voice_id, u.user_id
+            SELECT b.*, v.custom_voice, v.eleven_voice_id, u.user_id
             FROM bots b
             JOIN voices v ON b.voice_id = v.id
             JOIN users u ON b.owner_id = u.id
@@ -119,7 +120,7 @@ async def get_bots(owner_id: str, server_id: str):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT b.*, v.eleven_voice_id
+            SELECT b.*, v.custom_voice, v.eleven_voice_id
             FROM bots b
             JOIN voices v ON b.voice_id = v.id
             WHERE b.owner_id = (SELECT id FROM users WHERE user_id = %s) AND b.server_id = %s
@@ -470,7 +471,7 @@ async def update_bot_voice(voice_update: VoiceUpdate):
         cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (voice_update.eleven_voice_id,))
         voice = cur.fetchone()
         if voice is None:
-            cur.execute("INSERT INTO voices (eleven_voice_id) VALUES (%s) RETURNING *", (voice_update.eleven_voice_id,))
+            cur.execute("INSERT INTO voices (custom_voice, eleven_voice_id) VALUES (%s, %s) RETURNING *", (voice_update.custom_voice, voice_update.eleven_voice_id,))
             voice = cur.fetchone()
 
         # Get bots current voice id

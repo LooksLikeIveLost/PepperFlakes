@@ -637,6 +637,12 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
+        const customVoice = tierMap[ownerTier]['custom-voice'];
+        if (!customVoice && botConfig.custom_voice) {
+          await interaction.reply('The owner of this character does not have access to custom voices.');
+          return;
+        }
+
         // Set nickname
         try {
           const botMember = interaction.guild.members.cache.get(client.user.id);
@@ -682,7 +688,6 @@ client.on('messageCreate', async (message) => {
 
   const serverId = message.guild ? message.guild.id : null;
   
-  // Check if the message mentions the bot
   try {
     const botConfigs = await getBotConfigsByChannel(serverId, message.channel.id);
 
@@ -690,6 +695,22 @@ client.on('messageCreate', async (message) => {
 
     if (!botConfigs || botConfigs.length === 0) {
       return;
+    }
+
+    // Filter bots out if the member count isnt allowed by their tier
+    let deleted = false;
+    for (const botConfig of botConfigs) {
+      const tier = await getUserTierFromRoles(botConfig.user_id);
+      const memberCount = message.guild.memberCount;
+
+      if (memberCount > tierMap[tier]['member-quota']) {
+        await deleteBotConfig(serverId, botConfig.name);
+        deleted = true;
+      }
+    }
+    if (deleted) {
+      // Prune webhooks and voices
+      await pruneWebhooksServer(serverId);
     }
 
     const result = await generateBotResponse(client, message, botConfigs);

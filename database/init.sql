@@ -5,6 +5,7 @@ CREATE TABLE users (
 
 CREATE TABLE voices (
   id SERIAL PRIMARY KEY,
+  custom_voice: BOOLEAN NOT NULL,
   eleven_voice_id VARCHAR(255) NOT NULL
 );
 
