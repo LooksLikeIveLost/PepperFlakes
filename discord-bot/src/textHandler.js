@@ -54,8 +54,8 @@ async function generateBotResponse(client, message, contextSize, botConfigs) {
     return;
   }
 
-  // Wait 5-10 seconds
-  await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 5000) + 5000));
+  // Wait 2-4 seconds
+  await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 2000) + 2000));
 
   // Signal typing status
   await message.channel.sendTyping();
