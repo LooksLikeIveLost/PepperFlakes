@@ -19,21 +19,24 @@ const tierMap = {
     "member-quota": 40,
     "voice-enabled": false,
     "custom-voice": false,
-    "context-size": 8
+    "context-size": 8,
+    "response-time": 6
   },
   "basic": {
     "bot-quota": 3,
     "member-quota": 200,
     "voice-enabled": true,
     "custom-voice": false,
-    "context-size": 32
+    "context-size": 32,
+    "response-time": 2
   },
   "premium": {
     "bot-quota": 6,
     "member-quota": -1,
     "voice-enabled": true,
     "custom-voice": true,
-    "context-size": 64
+    "context-size": 64,
+    "response-time": 1
   }
 };
 

@@ -933,6 +933,7 @@ client.on('messageCreate', async (message) => {
     }
 
     const contextSize = tierMap[tier]['context-size'];
+    const time = tierMap[tier]['response-time'];
 
     const result = await generateBotResponse(client, message, contextSize, botConfigs);
 

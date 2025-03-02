@@ -1,7 +1,7 @@
 const axios = require('axios');
 const config = require('./config');
 
-async function generateBotResponse(client, message, contextSize, botConfigs) {
+async function generateBotResponse(client, message, contextSize, time, botConfigs) {
   const messages = await message.channel.messages.fetch({ limit: contextSize });
 
   // Add probability of response to each bot config
@@ -60,8 +60,8 @@ async function generateBotResponse(client, message, contextSize, botConfigs) {
   // Signal typing status
   await message.channel.sendTyping();
 
-  // Wait 3-6 seconds
-  await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 3000) + 3000));
+  // Wait while typing
+  await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (time/2) * 1000) + (time/2) * 1000));
 
   // Send response
   const response = await generateResponseFromMessages(conversationHistory, botconfig);
