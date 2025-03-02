@@ -16,13 +16,12 @@ CREATE TABLE bots (
   name VARCHAR(255) NOT NULL,
   character_description TEXT,
   example_speech TEXT,
-  custom_voice: BOOLEAN NOT NULL,
-  eleven_voice_id INTEGER,
+  custom_voice BOOLEAN NOT NULL,
+  eleven_voice_id VARCHAR(255),
   profile_picture_url TEXT,
   
   UNIQUE (server_id, name),
-  FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (voice_id) REFERENCES voices(id)
+  FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE webhooks (

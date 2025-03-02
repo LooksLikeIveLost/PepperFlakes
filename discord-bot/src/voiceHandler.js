@@ -9,7 +9,7 @@ const {
 } = require('@discordjs/voice');
 const axios = require('axios');
 const FormData = require('form-data');
-const { Readable } = require('stream');
+const { convertTextToSpeech } = require('./elevenLabs');
 
 const { generateResponseFromMessages } = require('./textHandler');
 const { getUsername } = require('./utils');
@@ -130,45 +130,6 @@ async function transcribeAudio(audioBuffer) {
   }
 }
 
-async function convertTextToSpeech(text, botConfig) {
-  try {
-    const response = await axios.post(AUDIO_PROCESSOR_URL + '/text-to-speech/', {
-      text,
-      eleven_voice_id: botConfig.eleven_voice_id
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      responseType: 'arraybuffer',
-    });
-
-    if (response.status === 200) {
-      // Create a Buffer from the response data
-      const audioBuffer = Buffer.from(response.data);
-      
-      // Create a Readable stream from the audio buffer
-      const audioStream = new Readable({
-        read() {
-          this.push(audioBuffer);
-          this.push(null);
-        }
-      });
-
-      return audioStream;
-    } else {
-      console.error('Error from text-to-speech API:', response.statusText);
-      return null;
-    }
-  } catch (error) {
-    if (error.response) {
-      console.error('Error in convertTextToSpeech:', error.response.status, error.response.data);
-    } else {
-      console.error('Error in convertTextToSpeech:', error.message);
-    }
-    return null;
-  }
-}
-
 function playFile(connection, filePath) {
   const player = createAudioPlayer();
   const resource = createAudioResource(filePath);
@@ -258,4 +219,7 @@ function leaveVC(guild) {
   }
 }
 
-module.exports = { joinVC, leaveVC };
+module.exports = {
+  joinVC,
+  leaveVC
+};

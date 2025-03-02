@@ -75,9 +75,9 @@ async function deleteBotConfig(serverId, name) {
   }
 }
 
-async function deleteBotConfigsByOwner(ownerId) {
+async function deleteBotConfigsByOwnerSever(ownerId, serverId) {
   try {
-    const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-config/owner/${ownerId}`);
+    const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-config/owner/server/${ownerId}/${serverId}`);
     return response.data;
   } catch (error) {
     console.error('Error deleting bot configs by owner:', error);
@@ -238,12 +238,12 @@ async function deleteBotWebhookLink(botId, webhookId) {
   }
 }
 
-async function updateBotElevenVoiceId(serverId, name, elevenVoiceId) {
+async function updateBotElevenVoiceId(serverId, name, elevenVoiceId, customVoice) {
   try {
     const bot_voice_data = {
       server_id: serverId,
       name: name,
-      custom_voice: false,
+      custom_voice: customVoice,
       eleven_voice_id: elevenVoiceId
     };
 
@@ -261,7 +261,7 @@ module.exports = {
   getBotConfigsByChannel,
   initializeBotConfig,
   deleteBotConfig,
-  deleteBotConfigsByOwner,
+  deleteBotConfigsByOwnerSever,
   deleteServerConfigs,
   getWebhook,
   pruneWebhook,

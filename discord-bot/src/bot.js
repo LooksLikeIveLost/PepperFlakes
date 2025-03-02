@@ -6,7 +6,10 @@ const {
   ApplicationCommandOptionType,
   WebhookClient,
   EmbedBuilder,
-  InteractionResponseFlags 
+  AttachmentBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
 } = require('discord.js');
 const { joinVC, leaveVC } = require('./voiceHandler');
 const { generateBotResponse } = require('./textHandler');
@@ -16,6 +19,15 @@ const {
   notifyUserTierChange,
   getUserTierFromRoles
 } = require('./utils');
+const {
+  generateVoicePreviews,
+  createVoiceFromPreview,
+  cloneVoice,
+  deleteVoice,
+  addToVoiceTempStorage,
+  getFromVoiceTempStorage,
+  deleteFromVoiceTempStorage
+} = require('./elevenLabs');
 const axios = require('axios');
 const { DISCORD_TOKEN, DATABASE_MANAGER_URL, BOT_DEVELOPER_ID } = require('./config');
 
@@ -27,7 +39,7 @@ const {
   getBotConfigsByChannel,
   initializeBotConfig,
   deleteBotConfig,
-  deleteBotConfigsByOwner,
+  deleteBotConfigsByOwnerSever,
   deleteServerConfigs,
   getWebhook,
   pruneWebhook,
@@ -124,6 +136,42 @@ const commands = [
         name: 'elevenlabsvoiceid',
         type: ApplicationCommandOptionType.String,
         description: 'The ElevenLabs voice ID',
+        required: true,
+      },
+    ]
+  },
+  {
+    name: 'setvoiceidfromdescription',
+    description: 'Generate voice previews based on a description',
+    options: [
+      {
+        name: 'name',
+        type: ApplicationCommandOptionType.String,
+        description: 'The name of the bot',
+        required: true,
+      },
+      {
+        name: 'description',
+        type: ApplicationCommandOptionType.String,
+        description: 'The voice description (20-1000 characters)',
+        required: true,
+      },
+    ]
+  },
+  {
+    name: 'setvoiceidfromvoiceclone',
+    description: 'Clone a voice from an audio file',
+    options: [
+      {
+        name: 'name',
+        type: ApplicationCommandOptionType.String,
+        description: 'The name of the bot',
+        required: true,
+      },
+      {
+        name: 'audiofile',
+        type: ApplicationCommandOptionType.Attachment,
+        description: 'The audio file to clone (10 seconds - 2 minutes)',
         required: true,
       },
     ]
@@ -536,12 +584,144 @@ client.on('interactionCreate', async interaction => {
         }
         
         try {
-          await updateBotElevenVoiceId(serverId, name, voiceId);
+          await deleteVoice(botConfig.eleven_voice_id);
+          await updateBotElevenVoiceId(serverId, name, voiceId, false);
           await interaction.reply({ content: 'Updated bot Eleven Labs Voice ID successfully.', ephemeral: true});
         } catch (error) {
           console.error('Error updating bot ElevenVoice ID:', error);
           await interaction.reply({ content: 'Failed to update bot Eleven Labs Voice ID. Check the console for more details.', ephemeral: true});
           return;
+        }
+        break;
+      }
+
+      case 'setvoiceidfromdescription': {
+        name = options.getString('name');
+        description = options.getString('description');
+
+        if (description.length > 2000 || description.length < 20) {
+          await interaction.reply({ content: 'Description must be between 20 and 2000 characters.', ephemeral: true });
+          return;
+        }
+
+        if (!await hasPermissions(ownerId, serverId)) {
+          await interaction.reply({ content: botPermissionsError, ephemeral: true });
+          return;
+        }
+
+        const botConfig = await getBotConfigValidate(ownerId, serverId, name);
+        if (!botConfig) {
+          await interaction.reply({ content: botValidateError, ephemeral: true });
+          return;
+        }
+
+        // Get owner's tier
+        const ownerTier = await getUserTierFromRoles(botConfig.user_id);
+        const customVoices = tierMap[ownerTier]['custom-voice'];
+
+        if (!customVoices) {
+          await interaction.reply({ content: 'The owner of this character does not have access to custom voices.', ephemeral: true });
+          return;
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+          const text = "Hello, my name is " + name + ". Here is my description: " + description.slice(0, 100) + ". Will you choose this as my new voice? I really hope so.";
+          const previews = await generateVoicePreviews(description, text);
+          if (!previews) {
+            await interaction.editReply({ content: 'Failed to generate voice previews. Please ensure prompts follow ElevenLabs guidelines.', ephemeral: true});
+            return;
+          }
+
+          for (const preview of previews) {
+            // Add to temp storage
+            addToVoiceTempStorage(preview.generated_voice_id, {
+              name: name,
+              description: description,
+              prev_eleven_voice_id: botConfig.eleven_voice_id
+            });
+          }
+
+          const buttons = previews.map((preview, index) => 
+            new ButtonBuilder()
+              .setCustomId(`select_preview_${preview.generated_voice_id}`)
+              .setLabel(`Preview ${index + 1}`)
+              .setStyle(ButtonStyle.Primary)
+          );
+
+          const attachments = previews.map((preview, index) => {
+            const buffer = Buffer.from(preview.audio_base_64, 'base64');
+            return new AttachmentBuilder(buffer, { name: `preview_${index + 1}.mp3` });
+          }).filter(attachment => attachment !== null);
+
+          await interaction.editReply({
+            content: 'Select a voice preview to use.',
+            files: attachments,
+            components: [new ActionRowBuilder().addComponents(buttons)]
+          });
+
+          // Buttons are handled in interaction handler
+        } catch (error) {
+          console.error('Error generating voice previews:', error);
+          await interaction.editReply({ content: 'Failed to generate voice previews. Check the console for more details.', ephemeral: true});
+          return;
+        }
+        break;
+      }
+
+      case 'clonevoice': {
+        const name = interaction.options.getString('name');
+        const audioFile = interaction.options.getAttachment('audiofile');
+      
+        if (!audioFile || !audioFile.contentType.startsWith('audio/')) {
+          await interaction.reply({ content: 'Please provide a valid audio file.', ephemeral: true });
+          return;
+        }
+      
+        const fileSizeInSeconds = audioFile.size / 16000; // Assuming 16kHz sample rate
+        if (fileSizeInSeconds < 10 || fileSizeInSeconds > 120) {
+          await interaction.reply({ content: 'Audio file must be between 10 seconds and 2 minutes long.', ephemeral: true });
+          return;
+        }
+      
+        if (!await hasPermissions(ownerId, serverId)) {
+          await interaction.reply({ content: botPermissionsError, ephemeral: true });
+          return;
+        }
+      
+        const botConfig = await getBotConfigValidate(ownerId, serverId, name);
+        if (!botConfig) {
+          await interaction.reply({ content: botValidateError, ephemeral: true });
+          return;
+        }
+      
+        const ownerTier = await getUserTierFromRoles(botConfig.user_id);
+        const customVoice = tierMap[ownerTier]['custom-voice'];
+      
+        if (!customVoice) {
+          await interaction.reply({ content: 'The owner of this character does not have access to custom voices.', ephemeral: true });
+          return;
+        }
+      
+        await interaction.deferReply();
+      
+        try {
+          await deleteVoice(botConfig.eleven_voice_id);
+
+          const audioBuffer = await axios.get(audioFile.url, { responseType: 'arraybuffer' });
+          const voiceId = await cloneVoice(name, audioBuffer.data);
+      
+          if (!voiceId) {
+            await interaction.editReply('Failed to clone voice.');
+            return;
+          }
+      
+          await updateBotElevenVoiceId(interaction.guildId, name, voiceId, true);
+          await interaction.editReply(`Voice cloned successfully. New voice ID: ${voiceId}`);
+        } catch (error) {
+          console.error('Error cloning voice:', error);
+          await interaction.editReply('An error occurred while cloning the voice.');
         }
         break;
       }
@@ -561,6 +741,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         try {
+          await deleteVoice(botConfig.eleven_voice_id);
           await deleteBotConfig(serverId, name);
           await interaction.reply({ content: 'Bot deleted successfully.', ephemeral: true});
 
@@ -681,6 +862,43 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
+// Handle button interactions
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isButton()) return;
+
+  if (interaction.customId.startsWith('select_preview_')) {
+    const previewId = interaction.customId.split('_')[2];
+    const data = getFromVoiceTempStorage(previewId);
+
+    if (!data) {
+      await interaction.reply({ content: 'Request timed out. Please try again.', ephemeral: true });
+      return;
+    }
+
+    const name = data.name;
+    const description = data.description;
+    const prev_eleven_voice_id = data.prev_eleven_voice_id;
+
+    deleteFromVoiceTempStorage(previewId);
+
+    try {
+      await deleteVoice(prev_eleven_voice_id);
+
+      const voiceId = await createVoiceFromPreview(name, description, previewId);
+      if (!voiceId) {
+        await interaction.reply({ content: 'Failed to create voice from preview.', ephemeral: true });
+        return;
+      }
+
+      await updateBotElevenVoiceId(interaction.guildId, name, voiceId, true);
+      await interaction.reply({ content: `Voice created successfully. New voice ID: ${voiceId}`, ephemeral: true });
+    } catch (error) {
+      console.error('Error creating voice from preview:', error);
+      await interaction.reply({ content: 'An error occurred while creating the voice.', ephemeral: true });
+    }
+  }
+});
+
 // Handle messages
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
@@ -704,6 +922,7 @@ client.on('messageCreate', async (message) => {
       const memberCount = message.guild.memberCount;
 
       if (memberCount > tierMap[tier]['member-quota']) {
+        await deleteVoice(botConfig.eleven_voice_id);
         await deleteBotConfig(serverId, botConfig.name);
         deleted = true;
       }
@@ -713,7 +932,9 @@ client.on('messageCreate', async (message) => {
       await pruneWebhooksServer(serverId);
     }
 
-    const result = await generateBotResponse(client, message, botConfigs);
+    const contextSize = tierMap[tier]['context-size'];
+
+    const result = await generateBotResponse(client, message, contextSize, botConfigs);
 
     if (!result) {
       return;
@@ -742,17 +963,26 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
 // Delete data when kicked
 client.on('guildMemberRemove', async (member) => {
   if (member.id !== client.user.id) {
-    await deleteBotConfigsByOwner(member.id);
+    const response = await deleteBotConfigsByOwnerSever(member.id, member.guild.id);
+    for (const botConfig of response) {
+      await deleteVoice(botConfig.eleven_voice_id);
+    }
     await pruneWebhooksServer(member.guild.id);
   } else {
-    await deleteServerConfigs(member.guild.id);
+    const response = await deleteServerConfigs(member.guild.id);
+    for (const botConfig of response) {
+      await deleteVoice(botConfig.eleven_voice_id);
+    }
     await deleteAllWebhooksForServer(member.guild.id);
   }
 });
 
 // Delete bot when server is deleted
 client.on('guildDelete', async (guild) => {
-  await deleteServerConfigs(guild.id);
+  const response = await deleteServerConfigs(guild.id);
+  for (const botConfig of response) {
+    await deleteVoice(botConfig.eleven_voice_id);
+  }
   await deleteAllWebhooksForServer(guild.id);
 });
 

@@ -4,3 +4,4 @@ requests
 google-cloud-speech
 python-dotenv
 python-multipart
+elevenlabs

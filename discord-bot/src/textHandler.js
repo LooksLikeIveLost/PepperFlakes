@@ -1,18 +1,24 @@
 const axios = require('axios');
 const config = require('./config');
 
-async function generateBotResponse(client, message, botConfigs) {
-  const messages = await message.channel.messages.fetch({ limit: 7 });
+async function generateBotResponse(client, message, contextSize, botConfigs) {
+  const messages = await message.channel.messages.fetch({ limit: contextSize });
 
   // Add probability of response to each bot config
   botConfigs.forEach(botConfig => {
     botConfig.probability = 0;
   });
 
-  // Filter by messages in the last hour and format
+  // Filter by messages and format
   const recentMessages = Array.from(messages.values())
-    .filter(msg => msg.createdTimestamp > Date.now() - (60 * 60 * 1000))
     .reverse();
+
+  // Replace image messages with text
+  recentMessages.forEach(msg => {
+    if (msg.content === '' && msg.attachments.size > 0) {
+      msg.content = msg.attachments.first().url;
+    }
+  });
 
   // Convert to { role, author, content}
   const conversationHistory = recentMessages.map(msg => ({

@@ -75,10 +75,10 @@ async def create_bot(bot: BotConfig):
 
         # Create new bot
         cur.execute("""
-            INSERT INTO bots (owner_id, server_id, name, character_description, example_speech, eleven_voice_id, profile_picture_url)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO bots (owner_id, server_id, name, character_description, example_speech, custom_voice, eleven_voice_id, profile_picture_url)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING *
-        """, (user_id, bot.server_id, bot.name, bot.character_description, bot.example_speech, bot.eleven_voice_id, bot.profile_picture_url))
+        """, (user_id, bot.server_id, bot.name, bot.character_description, bot.example_speech, False, bot.eleven_voice_id, bot.profile_picture_url))
         new_bot = cur.fetchone()
         conn.commit()
         return new_bot
@@ -196,6 +196,24 @@ async def delete_bot(server_id: str, name: str):
         cur.close()
         conn.close()
 
+@app.delete("/bot-config/owner/{owner_id}/server/{server_id}")
+async def delete_owner_bots(owner_id: str, server_id: str):
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        # Get list of bot configs to return
+        cur.execute("SELECT * FROM bots WHERE owner_id = %s AND server_id = %s", (owner_id, server_id))
+        bot_configs = cur.fetchall()
+        cur.execute("DELETE FROM bots WHERE owner_id = %s AND server_id = %s", (owner_id, server_id))
+        conn.commit()
+        return bot_configs
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
 @app.delete("/bot-config/owner/{owner_id}")
 async def delete_owner_bots(owner_id: str):
     conn = psycopg2.connect(**DB_CONFIG)
@@ -216,9 +234,12 @@ async def delete_server_bots(server_id: str):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
+        # Get list of bot configs to return
+        cur.execute("SELECT * FROM bots WHERE server_id = %s", (server_id,))
+        bot_configs = cur.fetchall()
         cur.execute("DELETE FROM bots WHERE server_id = %s", (server_id,))
         conn.commit()
-        return {"message": "Server bots deleted successfully"}
+        return bot_configs
     except psycopg2.Error as e:
         conn.rollback()
         raise HTTPException(status_code=400, detail=str(e))
