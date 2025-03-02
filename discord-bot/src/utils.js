@@ -49,14 +49,20 @@ const notifyUserTierChange = async (userId, newTier) => {
 async function getUserTierFromRoles(discordId) {
   // Get member from discord id
   const guild = await client.guilds.fetch(MAIN_SERVER_ID);
-  const member = await guild.members.fetch(discordId);
+  if (!guild) {
+    console.error(`Guild with ID ${MAIN_SERVER_ID} not found`);
+    return 'free';
+  }
 
+  const member = await guild.members.fetch(discordId);
   if (!member) {
+    console.error(`Member with ID ${discordId} not found in guild ${MAIN_SERVER_ID}`);
     return 'free';
   }
 
   for (const [roleName, tier] of Object.entries(TIER_ROLES)) {
-    if (member.roles.cache.some(role => role.name.contains(roleName))) {
+    // Chheck if role name contains roleName keyword
+    if (member.roles.cache.some(role => role.name.toLowerCase().includes(roleName.toLowerCase()))) {
       return tier;
     }
   }

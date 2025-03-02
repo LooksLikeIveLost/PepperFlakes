@@ -671,7 +671,7 @@ client.on('interactionCreate', async interaction => {
     }
   } catch (error) {
     console.error('Error handling command:', error);
-    await interaction.reply('An error occurred while processing the command.');
+    await interaction.reply({ content: 'An error occurred while processing the command.', ephemeral: true });
   }
 });
 
