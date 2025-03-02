@@ -63,22 +63,22 @@ async def create_bot(bot: BotConfig):
         user_id = user["id"]
 
         # Create voice if not exists and get eleven_voice_id
-        cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (bot.eleven_voice_id,))
-        voice = cur.fetchone()
-        if voice is None:
-            cur.execute("INSERT INTO voices (custom_voice, eleven_voice_id) VALUES (%s)", (False, bot.eleven_voice_id))
-            conn.commit()
-            cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (bot.eleven_voice_id,))
-            voice = cur.fetchone()
+        # cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (bot.eleven_voice_id,))
+        # voice = cur.fetchone()
+        # if voice is None:
+        #     cur.execute("INSERT INTO voices (custom_voice, eleven_voice_id) VALUES (%s)", (False, bot.eleven_voice_id))
+        #     conn.commit()
+        #     cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (bot.eleven_voice_id,))
+        #     voice = cur.fetchone()
 
-        voice_id = voice["id"]
+        # voice_id = voice["id"]
 
         # Create new bot
         cur.execute("""
-            INSERT INTO bots (owner_id, server_id, name, character_description, example_speech, voice_id, profile_picture_url)
+            INSERT INTO bots (owner_id, server_id, name, character_description, example_speech, eleven_voice_id, profile_picture_url)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING *
-        """, (user_id, bot.server_id, bot.name, bot.character_description, bot.example_speech, voice_id, bot.profile_picture_url))
+        """, (user_id, bot.server_id, bot.name, bot.character_description, bot.example_speech, bot.eleven_voice_id, bot.profile_picture_url))
         new_bot = cur.fetchone()
         conn.commit()
         return new_bot
@@ -100,9 +100,8 @@ async def get_bot(server_id: str, name: str):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT b.*, v.custom_voice, v.eleven_voice_id, u.user_id
+            SELECT b.*, u.user_id
             FROM bots b
-            JOIN voices v ON b.voice_id = v.id
             JOIN users u ON b.owner_id = u.id
             WHERE b.server_id = %s AND b.name = %s
         """, (server_id, name))
@@ -120,9 +119,8 @@ async def get_bots(owner_id: str, server_id: str):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT b.*, v.custom_voice, v.eleven_voice_id
+            SELECT b.*
             FROM bots b
-            JOIN voices v ON b.voice_id = v.id
             WHERE b.owner_id = (SELECT id FROM users WHERE user_id = %s) AND b.server_id = %s
         """, (owner_id, server_id))
         bots = cur.fetchall()
@@ -468,29 +466,33 @@ async def update_bot_voice(voice_update: VoiceUpdate):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         # Check for existing voice
-        cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (voice_update.eleven_voice_id,))
-        voice = cur.fetchone()
-        if voice is None:
-            cur.execute("INSERT INTO voices (custom_voice, eleven_voice_id) VALUES (%s, %s) RETURNING *", (voice_update.custom_voice, voice_update.eleven_voice_id,))
-            voice = cur.fetchone()
+        # cur.execute("SELECT * FROM voices WHERE eleven_voice_id = %s", (voice_update.eleven_voice_id,))
+        # voice = cur.fetchone()
+        # if voice is None:
+        #     cur.execute("INSERT INTO voices (custom_voice, eleven_voice_id) VALUES (%s, %s) RETURNING *", (voice_update.custom_voice, voice_update.eleven_voice_id))
+        #     voice = cur.fetchone()
 
         # Get bots current voice id
-        cur.execute("SELECT voice_id FROM bots WHERE server_id = %s AND name = %s", (voice_update.server_id, voice_update.name))
-        bot = cur.fetchone()
-        if bot is None:
-            raise HTTPException(status_code=404, detail="Bot not found")
-        old_voice_id = bot["voice_id"]
+        # cur.execute("SELECT voice_id FROM bots WHERE server_id = %s AND name = %s", (voice_update.server_id, voice_update.name))
+        # bot = cur.fetchone()
+        # if bot is None:
+        #     raise HTTPException(status_code=404, detail="Bot not found")
+        # old_voice_id = bot["voice_id"]
 
         # Update voice id
-        cur.execute("UPDATE bots SET voice_id = %s WHERE server_id = %s AND name = %s", (voice["id"], voice_update.server_id, voice_update.name))
+        cur.execute("""
+            UPDATE bots
+            SET custom_voice = %s, eleven_voice_id = %s
+            WHERE server_id = %s AND name = %s""",
+            (voice_update.custom_voice, voice_update.eleven_voice_id, voice_update.server_id, voice_update.name))
         conn.commit()
 
         # Check if voice is referenced in bots table, if not delete it
-        cur.execute("SELECT * FROM bots WHERE voice_id = %s", (old_voice_id,))
-        bot = cur.fetchone()
-        if bot is None:
-            cur.execute("DELETE FROM voices WHERE id = %s", (old_voice_id,))
-        return voice
+        # cur.execute("SELECT * FROM bots WHERE voice_id = %s", (old_voice_id,))
+        # bot = cur.fetchone()
+        # if bot is None:
+        #     cur.execute("DELETE FROM voices WHERE id = %s", (old_voice_id,))
+        # return voice
     finally:
         cur.close()
         conn.close()

@@ -3,11 +3,11 @@ CREATE TABLE users (
   user_id VARCHAR(255) UNIQUE NOT NULL
 );
 
-CREATE TABLE voices (
-  id SERIAL PRIMARY KEY,
-  custom_voice: BOOLEAN NOT NULL,
-  eleven_voice_id VARCHAR(255) NOT NULL
-);
+-- CREATE TABLE voices (
+--   id SERIAL PRIMARY KEY,
+--   custom_voice: BOOLEAN NOT NULL,
+--   eleven_voice_id VARCHAR(255) NOT NULL
+-- );
 
 CREATE TABLE bots (
   id SERIAL PRIMARY KEY,
@@ -16,7 +16,8 @@ CREATE TABLE bots (
   name VARCHAR(255) NOT NULL,
   character_description TEXT,
   example_speech TEXT,
-  voice_id INTEGER,
+  custom_voice: BOOLEAN NOT NULL,
+  eleven_voice_id INTEGER,
   profile_picture_url TEXT,
   
   UNIQUE (server_id, name),
