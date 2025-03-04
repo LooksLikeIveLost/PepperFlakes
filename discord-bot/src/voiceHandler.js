@@ -154,7 +154,7 @@ function playAudioStream(connection, audioStream) {
     player.play(resource);
 
     player.on('error', error => {
-      console.error('Error playing audio:', error);
+      console.error('Error playing audio:', error.response.data);
     });
 
     player.on(AudioPlayerStatus.Idle, () => {
@@ -164,7 +164,7 @@ function playAudioStream(connection, audioStream) {
     connection.subscribe(player);
     return player;
   } catch (error) {
-    console.error('Error creating audio player:', error);
+    console.error('Error creating audio player:', error.response.data);
     return null;
   }
 }
@@ -203,7 +203,7 @@ function handleVoiceActivity(voiceChannel, receiver, audioProcessor) {
             await audioProcessor(completeAudioBuffer, userId);
           }
         } catch (error) {
-          console.error('Error processing audio:', error);
+          console.error('Error processing audio:', error.response.data);
         }
       }
       audioBuffer = [];

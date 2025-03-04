@@ -65,7 +65,7 @@ async function convertTextToSpeech(text, botConfig) {
     if (error.response) {
       console.error('Error in convertTextToSpeech:', error.response.status, error.response.data);
     } else {
-      console.error('Error in convertTextToSpeech:', error);
+      console.error('Error in convertTextToSpeech:', error.response.data);
     }
     return null;
   }
@@ -90,7 +90,7 @@ async function generateVoicePreviews(description, text) {
       return null;
     }
   } catch (error) {
-    console.error('Error in generateVoicePreviews:', error);
+    console.error('Error in generateVoicePreviews:', error.response.data);
     return null;
   }
 }
@@ -114,7 +114,7 @@ async function createVoiceFromPreview(name, description, generatedVoiceId) {
       return null;
     }
   } catch (error) {
-    console.error('Error in createVoiceFromPreview:', error);
+    console.error('Error in createVoiceFromPreview:', error.response.data);
     return null;
   }
 }
@@ -123,7 +123,7 @@ async function cloneVoice(name, audioFile) {
   try {
     const formData = new FormData();
     formData.append('voice_name', name);
-    formData.append('voice_file', audioFile);
+    formData.append('voice_file', new Blob([audioFile], { type: 'audio/mpeg' }), 'voice.mp3');
 
     const response = await axios.post(AUDIO_PROCESSOR_URL + '/clone-voice/', formData, {
       headers: {
@@ -138,7 +138,7 @@ async function cloneVoice(name, audioFile) {
       return null;
     }
   } catch (error) {
-    console.error('Error in cloneVoice:', error);
+    console.error('Error in cloneVoice:', error.response ? error.response.data : error.message);
     return null;
   }
 }
@@ -154,7 +154,7 @@ async function deleteVoice(voiceId) {
       return false;
     }
   } catch (error) {
-    console.error('Error in deleteVoice:', error);
+    console.error('Error in deleteVoice:', error.response.data);
     return false;
   }
 }

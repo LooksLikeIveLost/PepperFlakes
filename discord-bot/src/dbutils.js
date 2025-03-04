@@ -8,7 +8,7 @@ async function getUserBotCount(userId) {
     const response = await axios.get(`${DATABASE_MANAGER_URL}/user/${userId}/bot-count`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching user bot count:', error);
+    console.error('Error fetching user bot count:', error.response.data);
     return null;
   }
 }
@@ -18,7 +18,7 @@ async function getBotConfig(serverId, name) {
     const response = await axios.get(`${DATABASE_MANAGER_URL}/bot-config/${serverId}/${name}`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching bot config:', error);
+    console.error('Error fetching bot config:', error.response.data);
     return null;
   }
 }
@@ -28,7 +28,7 @@ async function getBotConfigsList(ownerId, serverId) {
     const response = await axios.get(`${DATABASE_MANAGER_URL}/bot-config/list/${ownerId}/${serverId}`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching user bot configs:', error);
+    console.error('Error fetching user bot configs:', error.response.data);
     return null;
   }
 }
@@ -38,7 +38,7 @@ async function getBotConfigsByChannel(serverId, channelId) {
     const response = await axios.get(`${DATABASE_MANAGER_URL}/bot-config/channel/${serverId}/${channelId}`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching bot configs by channel:', error);
+    console.error('Error fetching bot configs by channel:', error.response.data);
     return null;
   }
 }
@@ -59,7 +59,7 @@ async function initializeBotConfig(ownerId, serverId, name) {
     const response = await axios.post(`${DATABASE_MANAGER_URL}/bot-config`, newConfig);
     return response.data;
   } catch (error) {
-    console.error('Error initializing bot config:', error);
+    console.error('Error initializing bot config:', error.response.data);
     throw error;
   }
 }
@@ -71,7 +71,7 @@ async function deleteBotConfig(serverId, name) {
 
     return response.data;
   } catch (error) {
-    console.error('Error deleting configs:', error);
+    console.error('Error deleting configs:', error.response.data);
   }
 }
 
@@ -80,7 +80,7 @@ async function deleteBotConfigsByOwnerSever(ownerId, serverId) {
     const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-config/owner/server/${ownerId}/${serverId}`);
     return response.data;
   } catch (error) {
-    console.error('Error deleting bot configs by owner:', error);
+    console.error('Error deleting bot configs by owner:', error.response.data);
   }
 }
 
@@ -89,7 +89,7 @@ async function deleteServerConfigs(serverId) {
     const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-config/server/${serverId}`);
     return response.data;
   } catch (error) {
-    console.error('Error deleting server configs:', error);
+    console.error('Error deleting server configs:', error.response.data);
   }
 }
 
@@ -150,7 +150,7 @@ async function getWebhook(serverId, channel, create = true) {
       return response.data;
     }
   } catch (error) {
-    console.error('Error creating webhook:', error);
+    console.error('Error creating webhook:', error.response.data);
     return null;
   }
 }
@@ -168,7 +168,7 @@ async function pruneWebhook(server_id, channel_id) {
 
     return response.data;
   } catch (error) {
-    console.error('Error pruning webhook:', error);
+    console.error('Error pruning webhook:', error.response.data);
     return null;
   }
 }
@@ -192,7 +192,7 @@ async function pruneWebhooksServer(server_id) {
 
     return response.data;
   } catch (error) {
-    console.error('Error pruning webhooks for server:', error);
+    console.error('Error pruning webhooks for server:', error.response.data);
     return null;
   }
 }
@@ -210,7 +210,7 @@ async function deleteAllWebhooksForServer(serverId) {
       await webhook.delete();
     }
   } catch (error) {
-    console.error('Error deleting all webhooks for server:', error);
+    console.error('Error deleting all webhooks for server:', error.response.data);
   }
 }
 
@@ -225,7 +225,7 @@ async function createBotWebhookLink(botId, webhookId) {
 
     return response.data;
   } catch (error) {
-    console.error('Error creating bot webhook link:', error);
+    console.error('Error creating bot webhook link:', error.response.data);
   }
 }
 
@@ -234,7 +234,7 @@ async function deleteBotWebhookLink(botId, webhookId) {
     const response = await axios.delete(`${DATABASE_MANAGER_URL}/bot-webhook/${botId}/${webhookId}`);
     return response.data;
   } catch (error) {
-    console.error('Error deleting bot webhook link:', error);
+    console.error('Error deleting bot webhook link:', error.response.data);
   }
 }
 
@@ -250,7 +250,7 @@ async function updateBotElevenVoiceId(serverId, name, elevenVoiceId, customVoice
     const response = await axios.put(`${DATABASE_MANAGER_URL}/bot-voice`, bot_voice_data);
     return response.data;
   } catch (error) {
-    console.error('Error updating bot ElevenVoice ID:', error);
+    console.error('Error updating bot ElevenVoice ID:', error.response.data);
   }
 }
 

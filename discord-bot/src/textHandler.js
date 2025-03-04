@@ -79,7 +79,7 @@ async function generateResponseFromMessages(messages, botconfig) {
     });
     return response.data.reply;
   } catch (error) {
-    console.error("Error fetching AI response:", error);
+    console.error("Error fetching AI response:", error.response.data);
     return null;
   }
 }

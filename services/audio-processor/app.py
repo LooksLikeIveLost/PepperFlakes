@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Response
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Form
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from elevenlabs import ElevenLabs
@@ -27,10 +27,6 @@ class VoiceCreationRequest(BaseModel):
     voice_name: str
     voice_description: str
     generated_voice_id: str
-
-class VoiceCloneRequest(BaseModel):
-    voice_name: str
-    voice_file: bytes
 
 @app.post("/transcribe-audio/")
 async def transcribe_audio_endpoint(file: UploadFile = File(...)):
@@ -69,21 +65,30 @@ async def create_voice_from_preview(request: VoiceCreationRequest):
         raise HTTPException(status_code=500, detail=f"Failed to create voice: {str(e)}")
     
 @app.post("/clone-voice/")
-async def clone_voice(request: VoiceCloneRequest):
-    # Clone voice and return voice id
+async def clone_voice(
+    voice_name: str = Form(...),
+    voice_file: UploadFile = File(...)
+):
     try:
-        with open("sample.mp3", "wb") as f:
-            f.write(request.voice_file)
+        # Save the uploaded file
+        file_path = f"temp_{voice_name}.mp3"
+        with open(file_path, "wb") as buffer:
+            content = await voice_file.read()
+            buffer.write(content)
 
-        voice = client.voices.clone(
-            name=request.voice_name,
-            files=["./sample.mp3"],
+        # Clone the voice
+        voice = client.voices.add(
+            name=voice_name,
+            files=[file_path],
         )
 
-        os.remove("sample.mp3")
+        # Remove the temporary file
+        os.remove(file_path)
 
         return {"voice_id": voice.voice_id}
     except Exception as e:
+        if os.path.exists(file_path):
+            os.remove(file_path)
         raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
     
 @app.post("/delete-voice/{voice_id}")
