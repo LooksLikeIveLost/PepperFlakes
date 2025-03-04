@@ -20,7 +20,8 @@ const tierMap = {
     "voice-enabled": false,
     "custom-voice": false,
     "context-size": 8,
-    "response-time": 6
+    "response-time": 6,
+    "desc-limit": 300
   },
   "basic": {
     "bot-quota": 3,
@@ -28,7 +29,8 @@ const tierMap = {
     "voice-enabled": true,
     "custom-voice": false,
     "context-size": 32,
-    "response-time": 2
+    "response-time": 2,
+    "desc-limit": 1000
   },
   "premium": {
     "bot-quota": 6,
@@ -36,7 +38,8 @@ const tierMap = {
     "voice-enabled": true,
     "custom-voice": true,
     "context-size": 64,
-    "response-time": 1
+    "response-time": 1,
+    "desc-limit": 2000
   }
 };
 

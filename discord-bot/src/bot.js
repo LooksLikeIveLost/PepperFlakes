@@ -533,9 +533,15 @@ client.on('interactionCreate', async interaction => {
         const field = options.getString('field');
         const value = options.getString('value');
 
-        // Limit to 2000 characters
-        if (value.length > 2000) {
-          await interaction.reply({ content: 'Value must be less than 300 characters.', ephemeral: true });
+        // Get tier
+        const userTier = await getUserTierFromRoles(ownerId);
+
+        // Get desc limit
+        const descLimit = tierMap[userTier]["desc-limit"];
+
+        // Limit characters
+        if (value.length > descLimit) {
+          await interaction.reply({ content: 'Value must be less than ' + descLimit + ' characters. Upgrade your tier to increase limits.', ephemeral: true });
           return;
         }
 
@@ -935,7 +941,7 @@ client.on('messageCreate', async (message) => {
     const contextSize = tierMap[tier]['context-size'];
     const time = tierMap[tier]['response-time'];
 
-    const result = await generateBotResponse(client, message, contextSize, botConfigs);
+    const result = await generateBotResponse(client, message, contextSize, time, botConfigs);
 
     if (!result) {
       return;
