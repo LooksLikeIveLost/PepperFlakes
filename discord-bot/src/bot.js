@@ -389,8 +389,8 @@ client.on('interactionCreate', async interaction => {
           .setTitle('Subscriptions')
           .setDescription('Here are ways you can support me and get more features:');
         
-        embed.addFields({ name: 'Discord', value: 'Check out the store right here on Discord!' });
         embed.addFields({ name: 'Patreon', value: 'https://www.patreon.com/c/KylenXiao' });
+        embed.addFields({ name: 'Discord', value: 'https://discord.com/discovery/applications/1342256163231760484/store' });
 
         await interaction.reply({ embeds: [embed], ephemeral: true });
         break;
