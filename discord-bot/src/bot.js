@@ -17,7 +17,7 @@ const {
   tierMap,
   getClient,
   notifyUserTierChange,
-  getUserTierFromRoles
+  getUserTier
 } = require('./utils');
 const {
   generateVoicePreviews,
@@ -377,7 +377,7 @@ client.on('interactionCreate', async interaction => {
 
       case 'tier': {
         // Get the user's tier
-        const userTier = await getUserTierFromRoles(ownerId);
+        const userTier = await getUserTier(ownerId);
 
         await interaction.reply({ content: `You are curently a ${userTier} tier member! Use the subscribe command for info about changing your tier! (If this seems like a mistake, get help through our server.)`, ephemeral: true });
         break;
@@ -388,7 +388,8 @@ client.on('interactionCreate', async interaction => {
         const embed = new EmbedBuilder()
           .setTitle('Subscriptions')
           .setDescription('Here are ways you can support me and get more features:');
-
+        
+        embed.addFields({ name: 'Discord', value: 'Check out the store right here on Discord!' });
         embed.addFields({ name: 'Patreon', value: 'https://www.patreon.com/c/KylenXiao' });
 
         await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -443,7 +444,7 @@ client.on('interactionCreate', async interaction => {
         
         try {
           // Get the user's tier
-          const userTier = await getUserTierFromRoles(ownerId);
+          const userTier = await getUserTier(ownerId);
 
           // Check if member limit is exceeded
           const guild = await client.guilds.fetch(serverId);
@@ -534,7 +535,7 @@ client.on('interactionCreate', async interaction => {
         const value = options.getString('value');
 
         // Get tier
-        const userTier = await getUserTierFromRoles(ownerId);
+        const userTier = await getUserTier(ownerId);
 
         // Get desc limit
         const descLimit = tierMap[userTier]["desc-limit"];
@@ -581,7 +582,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         // Get owner's tier
-        const ownerTier = await getUserTierFromRoles(botConfig.user_id);
+        const ownerTier = await getUserTier(botConfig.user_id);
         const voiceAccess = tierMap[ownerTier]['voice-enabled'];
 
         if (!voiceAccess) {
@@ -622,7 +623,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         // Get owner's tier
-        const ownerTier = await getUserTierFromRoles(botConfig.user_id);
+        const ownerTier = await getUserTier(botConfig.user_id);
         const customVoices = tierMap[ownerTier]['custom-voice'];
 
         if (!customVoices) {
@@ -717,7 +718,7 @@ client.on('interactionCreate', async interaction => {
           return;
         }
       
-        const ownerTier = await getUserTierFromRoles(botConfig.user_id);
+        const ownerTier = await getUserTier(botConfig.user_id);
         const customVoice = tierMap[ownerTier]['custom-voice'];
       
         if (!customVoice) {
@@ -831,7 +832,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         // Get owner's tier
-        const ownerTier = await getUserTierFromRoles(botConfig.user_id);
+        const ownerTier = await getUserTier(botConfig.user_id);
         const voiceAccess = tierMap[ownerTier]['voice-enabled'];
 
         if (!voiceAccess) {
@@ -878,7 +879,7 @@ client.on('interactionCreate', async interaction => {
       }
     }
   } catch (error) {
-    console.error('Error handling command:', error.response.data);
+    console.error('Error handling command:', error);
     await interaction.reply({ content: 'An error occurred while processing the command.', ephemeral: true });
   }
 });
@@ -939,7 +940,7 @@ client.on('messageCreate', async (message) => {
     // Filter bots out if the member count isnt allowed by their tier
     let deleted = false;
     for (const botConfig of botConfigs) {
-      const tier = await getUserTierFromRoles(botConfig.user_id);
+      const tier = await getUserTier(botConfig.user_id);
       const memberCount = message.guild.memberCount;
 
       if (memberCount > tierMap[tier]['member-quota']) {
@@ -975,7 +976,7 @@ client.on('messageCreate', async (message) => {
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
   if (oldMember.roles.cache.size !== newMember.roles.cache.size) {
     const discordId = newMember.id;
-    const newTier = await getUserTierFromRoles(discordId);
+    const newTier = await getUserTier(discordId);
     
     // Notify user
     await notifyUserTierChange(discordId, newTier);

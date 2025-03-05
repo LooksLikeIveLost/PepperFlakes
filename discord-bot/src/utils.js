@@ -33,11 +33,11 @@ const tierMap = {
     "desc-limit": 1000
   },
   "premium": {
-    "bot-quota": 6,
+    "bot-quota": 5,
     "member-quota": -1,
     "voice-enabled": true,
     "custom-voice": true,
-    "context-size": 64,
+    "context-size": 128,
     "response-time": 1,
     "desc-limit": 2000
   }
@@ -55,7 +55,29 @@ const notifyUserTierChange = async (userId, newTier) => {
   await user.send(`Your subscription tier has changed to ${newTier}. ${newTier === 'free' ? 'Consider renewing your subscription to keep your benefits!' : 'Thank you for your support!'}`);
 };
 
-async function getUserTierFromRoles(discordId) {
+async function getUserTier(discordId) {
+  // List entitlements
+  const user = await client.users.fetch(discordId);
+  const entitlements = (await client.application.entitlements.fetch({
+    user: user
+  })).values().filter(entitlement => entitlement.isActive());
+
+  // List skus
+  const skus = (await client.application.fetchSKUs()).values();
+
+  // Match where entitlement.skuId equals sku.id and sku.name equals tier
+  for (const entitlement of entitlements) {
+    for (const sku of skus) {
+      if (entitlement.skuId === sku.id) {
+        for (const [roleName, tier] of Object.entries(TIER_ROLES)) {
+          if (sku.name.toLowerCase().includes(roleName.toLowerCase())) {
+            return tier;
+          }
+        }
+      }
+    }
+  }
+
   // Get member from discord id
   const guild = await client.guilds.fetch(MAIN_SERVER_ID);
   if (!guild) {
@@ -83,4 +105,4 @@ const TIER_ROLES = {
   'Basic': 'basic',
 };
 
-module.exports = { tierMap, getClient, getUsername, notifyUserTierChange, getUserTierFromRoles };
+module.exports = { tierMap, getClient, getUsername, notifyUserTierChange, getUserTier };
