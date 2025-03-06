@@ -41,6 +41,8 @@ async function joinVC(voiceChannel, botConfig) {
 
   const receiver = connection.receiver;
 
+  let messages = [];
+
   // Handle voice activity
   handleVoiceActivity(voiceChannel, receiver, async (audioBuffer, userId) => {
     if (isProcessingVoiceRequest) {
@@ -51,7 +53,6 @@ async function joinVC(voiceChannel, botConfig) {
     isProcessingVoiceRequest = true;
 
     // Format messages
-    const messages = [];
     const username = await getUsername(userId);
 
     try {
@@ -65,6 +66,7 @@ async function joinVC(voiceChannel, botConfig) {
       }
 
       messages.push({ role: 'user', name: username, content: transcribedAudio });
+      messages = messages.slice(-botConfig.context_size);
 
       // Generate bot response
       const textRespose = await generateResponseFromMessages(messages, botConfig);
@@ -74,6 +76,10 @@ async function joinVC(voiceChannel, botConfig) {
         console.error("Error generating bot response");
         return null;
       }
+
+      // Add bot response to messages
+      messages.push({ role: 'assistant', name: botConfig.name, content: textRespose });
+      messages = messages.slice(-botConfig.context_size);
 
       // Convert text to speech
       const responseAudioStream = await convertTextToSpeech(textRespose, botConfig);
@@ -87,7 +93,9 @@ async function joinVC(voiceChannel, botConfig) {
       const player = playAudioStream(connection, responseAudioStream);
 
       // Wait for the audio stream to finish playing
-      await player.on(AudioPlayerStatus.Idle);
+      await player.on(AudioPlayerStatus.Idle, () => {
+        console.log("Audio playback finished");
+      });
     } catch (error) {
       console.error("Error in handleVoiceActivity:", error.response ? error.response.data : error.message);
     } finally {
@@ -201,21 +209,25 @@ function handleVoiceActivity(voiceChannel, receiver, audioProcessor) {
 
     let audioBuffer = [];
     let startTime = Date.now();
+    let finished = false;
 
     audioStream.on('data', (chunk) => {
+      if (finished) return;
+
       audioBuffer.push(chunk);
 
-      // Check if audio length exceeds 8 seconds
       if (Date.now() - startTime > 8000) {
-        audioStream.destroy();
+        // Manually trigger the end event
+        audioStream.emit('end');
       }
     });
 
     audioStream.on('end', async () => {
+      finished = true;
       const audioLength = (Date.now() - startTime);
 
       //console.log(`User ${userId} stopped speaking`);
-      if (audioBuffer.length > 0 && audioLength >= 800 && audioLength <= 8000) {
+      if (audioBuffer.length > 0 && audioLength >= 800) {
         try {
           // Calculate the response probability
           const responseProbability = 1 / peopleCount;
@@ -230,6 +242,11 @@ function handleVoiceActivity(voiceChannel, receiver, audioProcessor) {
           console.error('Error processing audio:', error);
         }
       }
+      audioBuffer = [];
+    });
+
+    audioStream.on('error', (error) => {
+      console.error('Error in audio stream:', error);
       audioBuffer = [];
     });
   });

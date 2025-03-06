@@ -849,6 +849,9 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
+        const contextSize = tierMap[ownerTier]['context-size'];
+        botConfig.context_size = contextSize;
+
         // Set nickname
         try {
           const botMember = interaction.guild.members.cache.get(client.user.id);
