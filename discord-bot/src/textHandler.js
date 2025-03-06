@@ -13,8 +13,9 @@ async function generateBotResponse(client, message, contextSize, time, botConfig
   const recentMessages = Array.from(messages.values())
     .reverse();
 
-  // Replace image messages with text
+  // Concatenate and replace image messages with text
   recentMessages.forEach(msg => {
+    msg.content = msg.content.slice(0, 100);
     if (msg.content === '' && msg.attachments.size > 0) {
       msg.content = msg.attachments.first().url;
     }

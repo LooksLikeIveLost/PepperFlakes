@@ -831,6 +831,9 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
+        // Leave voice channel
+        await leaveVC(interaction.guild);
+
         // Get owner's tier
         const ownerTier = await getUserTier(botConfig.user_id);
         const voiceAccess = tierMap[ownerTier]['voice-enabled'];

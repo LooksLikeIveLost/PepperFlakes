@@ -12,9 +12,11 @@ const FormData = require('form-data');
 const { convertTextToSpeech } = require('./elevenLabs');
 
 const { generateResponseFromMessages } = require('./textHandler');
-const { getUsername } = require('./utils');
+const { getClient, getUsername } = require('./utils');
 const { opus } = require('prism-media');
-const { AUDIO_PROCESSOR_URL, MIN_AUDIO_LENGTH } = require('./config');
+const { AUDIO_PROCESSOR_URL } = require('./config');
+
+const client = getClient();
 
 // Function to join voice channel
 async function joinVC(voiceChannel, botConfig) {
@@ -43,12 +45,6 @@ async function joinVC(voiceChannel, botConfig) {
   handleVoiceActivity(voiceChannel, receiver, async (audioBuffer, userId) => {
     if (isProcessingVoiceRequest) {
       console.log("Already processing a voice request");
-      return null;
-    }
-
-    // Check if the audio buffer is long enough
-    if (audioBuffer.length < MIN_AUDIO_LENGTH) {
-      console.log("Audio buffer is too short");
       return null;
     }
 
@@ -170,11 +166,32 @@ function playAudioStream(connection, audioStream) {
 }
 
 function handleVoiceActivity(voiceChannel, receiver, audioProcessor) {
-  receiver.speaking.on('start', (userId) => {
+  receiver.speaking.on('start', async (userId) => {
+    // Get member count
+    const peopleCount = voiceChannel.members.size - 1;
+
+    if (peopleCount > 8) {
+      console.log("Too many people in voice channel");
+      
+      // Mute the bot
+      const botMember = voiceChannel.members.find(member => member.user.id === client.user.id);
+      if (botMember && !botMember.voice.mute) {
+       await botMember.voice.setMute(true);
+      }
+
+      return;
+    } else {
+      // Unmute the bot
+      const botMember = voiceChannel.members.find(member => member.user.id === client.user.id);
+      if (botMember && botMember.voice.mute) {
+        await botMember.voice.setMute(false);
+      }
+    }
+
     const rawStream = receiver.subscribe(userId, {
       end: {
         behavior: EndBehaviorType.AfterSilence,
-        duration: 1000 // Adjust this value (in ms) to fine-tune silence detection
+        duration: 500 // Adjust this value (in ms) to fine-tune silence detection
       }
     });
 
@@ -183,18 +200,25 @@ function handleVoiceActivity(voiceChannel, receiver, audioProcessor) {
     const audioStream = rawStream.pipe(decoder);
 
     let audioBuffer = [];
+    let startTime = Date.now();
 
     audioStream.on('data', (chunk) => {
       audioBuffer.push(chunk);
+
+      // Check if audio length exceeds 8 seconds
+      if (Date.now() - startTime > 8000) {
+        audioStream.destroy();
+      }
     });
 
     audioStream.on('end', async () => {
+      const audioLength = (Date.now() - startTime);
+
       //console.log(`User ${userId} stopped speaking`);
-      if (audioBuffer.length > 0) {
+      if (audioBuffer.length > 0 && audioLength >= 800 && audioLength <= 8000) {
         try {
-          // Calculate the response probability (0.8 * 1 / peopleCount^2)
-          const peopleCount = voiceChannel.members.size - 1;
-          const responseProbability = 0.8 / Math.pow(peopleCount, 2);
+          // Calculate the response probability
+          const responseProbability = 1 / peopleCount;
 
           // Check if we should respond based on the calculated probability
           if (Math.random() <= responseProbability) {
