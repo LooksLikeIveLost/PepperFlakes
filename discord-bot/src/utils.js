@@ -56,6 +56,9 @@ const notifyUserTierChange = async (userId, newTier) => {
 };
 
 async function getUserTier(discordId) {
+  // Premium override
+  return 'premium';
+
   // List entitlements
   const user = await client.users.fetch(discordId);
   const entitlements = (await client.application.entitlements.fetch({
