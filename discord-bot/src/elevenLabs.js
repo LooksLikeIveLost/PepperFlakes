@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { Readable } = require('stream');
 const { AUDIO_PROCESSOR_URL } = require('./config');
+const FormData = require('form-data');
 
 const tempVoiceStorage = {};
 
@@ -119,16 +120,23 @@ async function createVoiceFromPreview(name, description, generatedVoiceId) {
   }
 }
 
-async function cloneVoice(name, audioFile) {
+async function cloneVoice(name, audioBuffer, fileName, fileType) {
   try {
+    console.log(`Cloning voice: ${name}, File: ${fileName}, Type: ${fileType}, Size: ${audioBuffer.length} bytes`);
+
     const formData = new FormData();
     formData.append('voice_name', name);
-    formData.append('voice_file', new Blob([audioFile], { type: 'audio/mpeg' }), 'voice.mp3');
+    formData.append('voice_file', audioBuffer, {
+      filename: fileName,
+      contentType: fileType
+    });
 
     const response = await axios.post(AUDIO_PROCESSOR_URL + '/clone-voice/', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
-      }
+        ...formData.getHeaders(),
+      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
     });
 
     if (response.status === 200) {

@@ -70,25 +70,23 @@ async def clone_voice(
     voice_file: UploadFile = File(...)
 ):
     try:
-        # Save the uploaded file
-        file_path = f"temp_{voice_name}.mp3"
-        with open(file_path, "wb") as buffer:
-            content = await voice_file.read()
-            buffer.write(content)
+        print(f"Received file: {voice_file.filename}, Content-Type: {voice_file.content_type}")
+        
+        # Read the file content
+        content = await voice_file.read()
+        print(f"File size: {len(content)} bytes")
+
+        file_stream = io.BytesIO(content)
 
         # Clone the voice
         voice = client.voices.add(
             name=voice_name,
-            files=[file_path],
+            files=[file_stream],
         )
-
-        # Remove the temporary file
-        os.remove(file_path)
 
         return {"voice_id": voice.voice_id}
     except Exception as e:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        print(f"Error in clone_voice: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
     
 @app.post("/delete-voice/{voice_id}")

@@ -687,19 +687,11 @@ client.on('interactionCreate', async interaction => {
         }
 
         // Check file type
-        const allowedTypes = ['audio/mpeg', 'audio/wav'];
+        const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/wave'];
         if (!allowedTypes.includes(audioFile.contentType)) {
           await interaction.reply({ content: 'Please upload an MP3 or WAV file.', ephemeral: true });
           return;
         }
-
-        // Check file size (2MB to 20MB)
-        // const minSize = 2 * 1024 * 1024; // 2MB
-        // const maxSize = 20 * 1024 * 1024; // 20MB
-        // if (audioFile.size < minSize || audioFile.size > maxSize) {
-        //   await interaction.reply({ content: 'Audio file must be between 2MB and 20MB.', ephemeral: true });
-        //   return;
-        // }
       
         const fileSizeInSeconds = audioFile.size / 16000; // Assuming 16kHz sample rate
         if (fileSizeInSeconds < 10 || fileSizeInSeconds > 120) {
@@ -730,9 +722,11 @@ client.on('interactionCreate', async interaction => {
       
         try {
           await deleteVoice(botConfig.eleven_voice_id);
-
-          const audioBuffer = await axios.get(audioFile.url, { responseType: 'arraybuffer' });
-          const voiceId = await cloneVoice(name, audioBuffer.data);
+      
+          const audioResponse = await axios.get(audioFile.url, { responseType: 'arraybuffer' });
+          const audioBuffer = Buffer.from(audioResponse.data);
+      
+          const voiceId = await cloneVoice(name, audioBuffer, audioFile.name, audioFile.contentType);
       
           if (!voiceId) {
             await interaction.editReply({ content: 'Failed to clone voice.', ephemeral: true });
@@ -742,7 +736,7 @@ client.on('interactionCreate', async interaction => {
           await updateBotElevenVoiceId(interaction.guildId, name, voiceId, true);
           await interaction.editReply(`Voice cloned successfully. New voice ID: ${voiceId}`);
         } catch (error) {
-          console.error('Error cloning voice:', error.response.data);
+          console.error('Error cloning voice:', error.response ? error.response.data : error.message);
           await interaction.editReply('An error occurred while cloning the voice.');
         }
         break;
