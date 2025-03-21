@@ -1,5 +1,8 @@
 const axios = require('axios');
 const config = require('./config');
+const {
+  tierMap
+} = require('./utils');
 
 async function generateBotResponse(client, message, contextSize, botConfigs) {
   const messages = await message.channel.messages.fetch({ limit: contextSize });
