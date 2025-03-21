@@ -22,7 +22,7 @@ async function generateBotResponse(client, message, contextSize, botConfigs) {
   });
 
   // Convert to { role, author, content}
-  const conversationHistory = recentMessages.map(msg => ({
+  let conversationHistory = recentMessages.map(msg => ({
     role: (msg.webhookId || msg.author.id === client.user.id) ? 'assistant' : 'user',
     name: msg.author.username,
     content: msg.content
@@ -32,7 +32,7 @@ async function generateBotResponse(client, message, contextSize, botConfigs) {
   for (const botConfig of botConfigs) {
     const mentionsBot = message.mentions.users.has(client.user.id) || message.content.toLowerCase().includes(botConfig.name.toLowerCase());
     // Get number of messages where the username is the same
-    const numOwnMessages = recentMessages.filter(msg => msg.webhookId && msg.author.username === botConfig.name).length;
+    const numOwnMessages = recentMessages.slice(0, 8).filter(msg => msg.webhookId && msg.author.username === botConfig.name).length;
 
     // Get chance of response
     botConfig.probability = mentionsBot ? 100 : (15 * numOwnMessages + 2);
@@ -48,7 +48,11 @@ async function generateBotResponse(client, message, contextSize, botConfigs) {
     return;
   }
 
+  const botContextSize = tierMap[tier]['context-size'];
   const time = tierMap[tier]['response-time'];
+
+  // Trim conversation history to bot context size
+  conversationHistory = conversationHistory.slice(-botContextSize);
 
   // Wait 2-4 seconds
   await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 2000) + 2000));
