@@ -939,7 +939,7 @@ client.on('messageCreate', async (message) => {
 
     // Remove all botConfigs from botConfigs list where the member count is greater than the tier member quota
     const memberCount = message.guild.memberCount;
-    let highestContextSize = 0;
+    let highestContextSize = 8;
     botConfigs = botConfigs.filter(async botConfig => {
       const tier = await getUserTier(botConfig.user_id);
 
