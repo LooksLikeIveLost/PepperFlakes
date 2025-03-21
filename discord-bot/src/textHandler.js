@@ -1,7 +1,7 @@
 const axios = require('axios');
 const config = require('./config');
 
-async function generateBotResponse(client, message, contextSize, time, botConfigs) {
+async function generateBotResponse(client, message, contextSize, botConfigs) {
   const messages = await message.channel.messages.fetch({ limit: contextSize });
 
   // Add probability of response to each bot config
@@ -27,13 +27,6 @@ async function generateBotResponse(client, message, contextSize, time, botConfig
     name: msg.author.username,
     content: msg.content
   }))
-  
-  // Check for not now
-  if (recentMessages.some(msg => msg.content.toLowerCase().includes('not now')
-    || msg.content.toLowerCase().includes('shut up')
-    || msg.content.toLowerCase().includes('be quiet'))) {
-    return;
-  }
 
   // Get chance of response, with 100% if message mentions bot and 15% for each message where the author is the bot, plus 2% flat
   for (const botConfig of botConfigs) {
@@ -54,6 +47,8 @@ async function generateBotResponse(client, message, contextSize, time, botConfig
   if (randomNum >= botconfig.probability) {
     return;
   }
+
+  const time = tierMap[tier]['response-time'];
 
   // Wait 2-4 seconds
   await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 2000) + 2000));

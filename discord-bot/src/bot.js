@@ -937,27 +937,20 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    // Filter bots out if the member count isnt allowed by their tier
-    let deleted = false;
-    for (const botConfig of botConfigs) {
+    // Remove all botConfigs from botConfigs list where the member count is greater than the tier member quota
+    const memberCount = message.guild.memberCount;
+    let highestContextSize = 0;
+    botConfigs = botConfigs.filter(async botConfig => {
       const tier = await getUserTier(botConfig.user_id);
-      const memberCount = message.guild.memberCount;
 
-      if (memberCount > tierMap[tier]['member-quota']) {
-        await deleteVoice(botConfig.eleven_voice_id);
-        await deleteBotConfig(serverId, botConfig.name);
-        deleted = true;
+      if (tierMap[tier]['context-size'] > highestContextSize) {
+        highestContextSize = tierMap[tier]['context-size'];
       }
-    }
-    if (deleted) {
-      // Prune webhooks and voices
-      await pruneWebhooksServer(serverId);
-    }
 
-    const contextSize = tierMap[tier]['context-size'];
-    const time = tierMap[tier]['response-time'];
+      return memberCount <= tierMap[tier]['member-quota'];
+    });
 
-    const result = await generateBotResponse(client, message, contextSize, time, botConfigs);
+    const result = await generateBotResponse(client, message, highestContextSize, botConfigs);
 
     if (!result) {
       return;
