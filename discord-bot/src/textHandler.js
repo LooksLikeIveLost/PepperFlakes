@@ -1,8 +1,5 @@
 const axios = require('axios');
 const config = require('./config');
-const {
-  tierMap
-} = require('./utils');
 
 async function generateBotResponse(client, message, contextSize, botConfigs) {
   const messages = await message.channel.messages.fetch({ limit: contextSize });
@@ -51,11 +48,7 @@ async function generateBotResponse(client, message, contextSize, botConfigs) {
     return;
   }
 
-  const botContextSize = tierMap[tier]['context-size'];
-  const time = tierMap[tier]['response-time'];
-
-  // Trim conversation history to bot context size
-  conversationHistory = conversationHistory.slice(-botContextSize);
+  const time = 2;
 
   // Wait 2-4 seconds
   await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 2000) + 2000));
