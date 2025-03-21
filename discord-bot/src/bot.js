@@ -929,7 +929,7 @@ client.on('messageCreate', async (message) => {
   const serverId = message.guild ? message.guild.id : null;
   
   try {
-    const botConfigs = await getBotConfigsByChannel(serverId, message.channel.id);
+    let botConfigs = await getBotConfigsByChannel(serverId, message.channel.id);
 
     console.log('Bot configs:', botConfigs);
 
