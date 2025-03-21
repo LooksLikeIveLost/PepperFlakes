@@ -271,7 +271,7 @@ async function refreshAppCommands(guildId) {
     }
     return true;
   } catch (error) {
-    console.error('Failed to reload application (/) commands:', error.response.data);
+    console.error('Failed to reload application (/) commands:', error);
     return false;
   }
 }
@@ -285,7 +285,7 @@ async function sendWebhookMessage(webhookUrl, content, username, avatarURL) {
       avatarURL: avatarURL,
     });
   } catch (error) {
-    console.error('Error sending webhook message:', error.response.data);
+    console.error('Error sending webhook message:', error);
   }
 }
 
@@ -314,7 +314,7 @@ async function hasPermissions(userId, serverId) {
     const member = await guild.members.fetch(userId);
     return member.permissions.has('MANAGE_GUILD');
   } catch (error) {
-    console.error('Error checking server permissions:', error.response.data);
+    console.error('Error checking server permissions:', error);
     return false;
   }
 }
@@ -468,7 +468,7 @@ client.on('interactionCreate', async interaction => {
           await initializeBotConfig(ownerId, serverId, name);
           await interaction.editReply(`Bot created successfully for server.`);
         } catch (error) {
-          console.error('Error creating bot:', error.response.data);
+          console.error('Error creating bot:', error);
           await interaction.editReply("Failed to create bot named " + name + "... Check that the name is not already in use.");
         }
         break;
@@ -506,7 +506,7 @@ client.on('interactionCreate', async interaction => {
 
           await interaction.editReply(`Bot enabled successfully for channel ${channel.name}.`);
         } catch (error) {
-          console.error('Error initializing bot:', error.response.data);
+          console.error('Error initializing bot:', error);
           await interaction.editReply('Failed to enable bot for channel. Check the console for more details.');
         }
         break;
@@ -595,7 +595,7 @@ client.on('interactionCreate', async interaction => {
           await updateBotElevenVoiceId(serverId, name, voiceId, false);
           await interaction.reply({ content: 'Updated bot Eleven Labs Voice ID successfully.', ephemeral: true});
         } catch (error) {
-          console.error('Error updating bot ElevenVoice ID:', error.response.data);
+          console.error('Error updating bot ElevenVoice ID:', error);
           await interaction.reply({ content: 'Failed to update bot Eleven Labs Voice ID. Check the console for more details.', ephemeral: true});
           return;
         }
@@ -670,7 +670,7 @@ client.on('interactionCreate', async interaction => {
 
           // Buttons are handled in interaction handler
         } catch (error) {
-          console.error('Error generating voice previews:', error.response.data);
+          console.error('Error generating voice previews:', error);
           await interaction.editReply({ content: 'Failed to generate voice previews. Check the console for more details.', ephemeral: true});
           return;
         }
@@ -764,7 +764,7 @@ client.on('interactionCreate', async interaction => {
           // prune webhooks
           await pruneWebhooksServer(serverId);
         } catch (error) {
-          console.error('Error deleting bot:', error.response.data);
+          console.error('Error deleting bot:', error);
           await interaction.reply('Failed to delete bot. Check the console for more details.');
         }
         break;
@@ -803,7 +803,7 @@ client.on('interactionCreate', async interaction => {
           // Prune webhook
           await pruneWebhook(serverId, interaction.channel.id);
         } catch (error) {
-          console.error('Error disabling bot:', error.response.data);
+          console.error('Error disabling bot:', error);
           await interaction.editReply('Failed to disable bot for channel. Check the console for more details.');
         }
         break;
@@ -851,7 +851,7 @@ client.on('interactionCreate', async interaction => {
           const botMember = interaction.guild.members.cache.get(client.user.id);
           await botMember.setNickname(botConfig.name);
         } catch (error) {
-          console.error('Error setting nickname:', error.response.data);
+          console.error('Error setting nickname:', error);
         }
 
         await interaction.reply({ content: 'Joining the voice channel...', ephemeral: true });
@@ -866,7 +866,7 @@ client.on('interactionCreate', async interaction => {
           const botMember = interaction.guild.members.cache.get(client.user.id);
           await botMember.setNickname(null);
         } catch (error) {
-          console.error('Error resetting nickname:', error.response.data);
+          console.error('Error resetting nickname:', error);
         }
 
         await leaveVC(interaction.guild);
@@ -915,7 +915,7 @@ client.on('interactionCreate', async interaction => {
       await updateBotElevenVoiceId(interaction.guildId, name, voiceId, true);
       await interaction.reply({ content: `Voice created successfully. New voice ID: ${voiceId}`, ephemeral: true });
     } catch (error) {
-      console.error('Error creating voice from preview:', error.response.data);
+      console.error('Error creating voice from preview:', error);
       await interaction.reply({ content: 'An error occurred while creating the voice.', ephemeral: true });
     }
   }
@@ -969,7 +969,7 @@ client.on('messageCreate', async (message) => {
       await sendWebhookMessage(botConfig.webhook_url, response, botConfig.name, botConfig.profile_picture_url);
     }
   } catch (error) {
-    console.error('Error handling message:', error.response.data);
+    console.error('Error handling message:', error);
   }
 });
 
