@@ -947,7 +947,8 @@ client.on('messageCreate', async (message) => {
         highestContextSize = tierMap[tier]['context-size'];
       }
 
-      return memberCount <= tierMap[tier]['member-quota'];
+      const quota = tierMap[tier]['member-quota'];
+      return memberCount <= quota || quota === -1;
     });
 
     const result = await generateBotResponse(client, message, highestContextSize, botConfigs);
