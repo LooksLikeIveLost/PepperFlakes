@@ -137,10 +137,11 @@ async def get_bots_by_channel(server_id: str, channel_id: str):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT b.*, wc.webhook_id, wc.webhook_url
+            SELECT b.*, u.user_id, wc.webhook_id, wc.webhook_url
             FROM bots b
             JOIN bots_webhooks bw ON b.id = bw.bot_id
             JOIN webhooks wc ON bw.webhook_id = wc.id
+            JOIN users u ON b.owner_id = u.id
             WHERE wc.server_id = %s AND wc.channel_id = %s
         """, (server_id, channel_id))
         bots = cur.fetchall()

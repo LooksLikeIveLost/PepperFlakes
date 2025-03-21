@@ -57,25 +57,29 @@ const notifyUserTierChange = async (userId, newTier) => {
 
 async function getUserTier(discordId) {
   // List entitlements
-  const user = await client.users.fetch(discordId);
-  const entitlements = (await client.application.entitlements.fetch({
-    user: user
-  })).values().filter(entitlement => entitlement.isActive());
+  try {
+    const user = await client.users.fetch(discordId);
+    const entitlements = (await client.application.entitlements.fetch({
+      user: user
+    })).values().filter(entitlement => entitlement.isActive());
 
-  // List skus
-  const skus = (await client.application.fetchSKUs()).values();
+    // List skus
+    const skus = (await client.application.fetchSKUs()).values();
 
-  // Match where entitlement.skuId equals sku.id and sku.name equals tier
-  for (const entitlement of entitlements) {
-    for (const sku of skus) {
-      if (entitlement.skuId === sku.id) {
-        for (const [roleName, tier] of Object.entries(TIER_ROLES)) {
-          if (sku.name.toLowerCase().includes(roleName.toLowerCase())) {
-            return tier;
+    // Match where entitlement.skuId equals sku.id and sku.name equals tier
+    for (const entitlement of entitlements) {
+      for (const sku of skus) {
+        if (entitlement.skuId === sku.id) {
+          for (const [roleName, tier] of Object.entries(TIER_ROLES)) {
+            if (sku.name.toLowerCase().includes(roleName.toLowerCase())) {
+              return tier;
+            }
           }
         }
       }
     }
+  } catch (error) {
+    console.error('Error fetching entitlements:', error);
   }
 
   // Get member from discord id
