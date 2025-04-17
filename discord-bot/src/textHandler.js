@@ -28,9 +28,15 @@ async function generateBotResponse(client, message, contextSize, botConfigs) {
     content: msg.content
   }))
 
+  // Check if user is replying to webhook and get name
+  const webhookName = message.reference?.resolved?.author?.username || null;
+
   // Get chance of response, with 100% if message mentions bot and 15% for each message where the author is the bot, plus 2% flat
   for (const botConfig of botConfigs) {
-    const mentionsBot = message.mentions.users.has(client.user.id) || message.content.toLowerCase().includes(botConfig.name.toLowerCase());
+    const mentionsBot = message.mentions.users.has(client.user.id)
+      || message.content.toLowerCase().includes(botConfig.name.toLowerCase())
+      || webhookName === botConfig.name;
+
     // Get number of messages where the username is the same
     const numOwnMessages = recentMessages.slice(0, 8).filter(msg => msg.webhookId && msg.author.username === botConfig.name).length;
 
